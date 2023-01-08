@@ -109,7 +109,7 @@ template Example(jsonLength, attrLength) {
 
 component main {
     public [ JSON, attribute, keyOffset ]
-} = Example(10, 10);
+} = Example(10, 2);
 
 /* INPUT = {
     "JSON": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
