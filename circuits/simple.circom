@@ -8,6 +8,7 @@ include "circomlib/multiplexer.circom";
 
 /*
 Publicly known:
+
 - Public key of signer
 - Selected attribute names (also base64)
     (All not mentioned attributes are implied to be redacted)
@@ -46,7 +47,7 @@ template Example(jsonLength, attrLength) {
     // signal output maskedJSON[jsonLength];
 
     component isEqualStartOps[jsonLength];
-    component isEqualEndOps[jsonLength];
+    component isEqualEndOps[jsonLength + 1];
     component isEqualNew[jsonLength];
     component multiplexers[jsonLength];
     
@@ -55,23 +56,34 @@ template Example(jsonLength, attrLength) {
     inKey[0] <== 0;
     index[0] <== 0;
 
-    for (var j = 0; j < jsonLength; j++) {
+    // Set the first component to be 0.
+    isEqualEndOps[0] = IsEqual();
+    isEqualEndOps[0].in[0] <== 0;
+    isEqualEndOps[0].in[1] <== 1;
 
+    component attrLengthCorrect = IsEqual();
+    attrLengthCorrect.in[0] <== keyOffset[1] - keyOffset[0] + 1;
+    attrLengthCorrect.in[1] <== attrLength;
+    attrLengthCorrect.out === 1;
+
+    for (var j = 0; j < jsonLength; j++) {
         isEqualStartOps[j] = IsEqual();
-        isEqualEndOps[j] = IsEqual();
+        isEqualEndOps[j + 1] = IsEqual();
         isEqualNew[j] = IsEqual();
 
         isEqualStartOps[j].in[0] <== keyOffset[0];
         isEqualStartOps[j].in[1] <== j;
-        isEqualEndOps[j].in[0] <== keyOffset[1];
-        isEqualEndOps[j].in[1] <== j;
+        isEqualEndOps[j + 1].in[0] <== keyOffset[1];
+        isEqualEndOps[j + 1].in[1] <== j;
 
         // inKey is 1 when you're inside the attribute, and 0 when you're outside
         inKey[j + 1] <== inKey[j] + isEqualStartOps[j].out - isEqualEndOps[j].out;
      
         // index inside attribute array
-        index[j + 1] <== inKey[j] + index[j];
-        
+        index[j + 1] <== inKey[j] + index[j] - isEqualEndOps[j].out;
+        log(index[j + 1]);
+        log(inKey[j + 1]);
+        log("----");      
         multiplexers[j] = Multiplexer(1, attrLength);
         for (var i = 0; i < attrLength; i++) {
              multiplexers[j].inp[i][0] <== attribute[i];
@@ -109,10 +121,10 @@ template Example(jsonLength, attrLength) {
 
 component main {
     public [ JSON, attribute, keyOffset ]
-} = Example(10, 2);
+} = Example(10, 3);
 
 /* INPUT = {
-    "JSON": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    "attribute": [1, 2],
-    "keyOffset": [0, 1]
+    "JSON": [2, 3, 3, 4, 5, 6, 7, 8, 9, 10],
+    "attribute": [2, 3, 3],
+    "keyOffset": [0, 2]
 } */
