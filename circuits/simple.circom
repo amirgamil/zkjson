@@ -17,7 +17,7 @@ Private inputs:
 - Base64 of JSON
 - Hash(base64 of json, secret salt) (like JWT?)
 - Signature (Ecdh/ECDSA?)
-- keyOffset[][] (tuple of key start, key end)
+- keysOffset[][] (tuple of key start, key end)
 - valueOffset[][] (tuple of value start, value end)
 - key[][] (length of key is number of attributes in JSON, )
 
@@ -43,7 +43,6 @@ template StringCompare(attrLength, jsonLength) {
     signal input keyOffset[2];
     signal input JSON[jsonLength];
     signal input attribute[attrLength];
-    signal output outputMatch;
     component isEqualStartOps[jsonLength];
     component isEqualEndOps[jsonLength + 1];
     component isEqualNew[jsonLength];
@@ -78,9 +77,9 @@ template StringCompare(attrLength, jsonLength) {
      
         // index inside attribute array
         index[j + 1] <== inKey[j] + index[j] - isEqualEndOps[j].out;
-        log(index[j + 1]);
-        log(inKey[j + 1]);
-        log("----");      
+        // log(index[j + 1]);
+        // log(inKey[j + 1]);
+        // log("----");      
         multiplexers[j] = Multiplexer(1, attrLength);
         for (var i = 0; i < attrLength; i++) {
              multiplexers[j].inp[i][0] <== attribute[i];
@@ -102,7 +101,8 @@ template StringCompare(attrLength, jsonLength) {
 template Example(jsonLength, numKeys, attrLengths) {
     signal input JSON[jsonLength];
     signal input attributes[numKeys][10];
-    signal input keyOffset[numKeys][2];
+    signal input keysOffset[numKeys][2];
+    signal input valuesOffset[numKeys][2];
     // signal input valueOffset[2];
     // signal input keys[jsonLength][5];
     // signal output maskedJSON[jsonLength];
@@ -113,23 +113,63 @@ template Example(jsonLength, numKeys, attrLengths) {
     
     for (var i = 0; i < numKeys; i++) {
         attrLengthCorrect[i] = IsEqual();
-       attrLengthCorrect[i].in[0] <== keyOffset[i][1] - keyOffset[i][0] + 1;
+       attrLengthCorrect[i].in[0] <== keysOffset[i][1] - keysOffset[i][0] + 1;
         attrLengthCorrect[i].in[1] <== attrLengths[i];
         attrLengthCorrect[i].out === 1;
     }
-    // LOOP
+    
     component stringMatches[numKeys];
     for (var i = 0; i < numKeys; i++) {
         stringMatches[i] = StringCompare(attrLengths[i], jsonLength);
         for (var attIndex = 0; attIndex < attrLengths[i]; attIndex++) {
             stringMatches[i].attribute[attIndex] <== attributes[i][attIndex];
         }
-        stringMatches[i].keyOffset <== keyOffset[i];
+        stringMatches[i].keyOffset <== keysOffset[i];
         stringMatches[i].JSON <== JSON;
     }
-  
 
-    // for (var j = keyOffset[0]; j < keyOffset[1]; j++) {
+    component characters[numKeys][6];
+
+    for (var i = 0; i < numKeys; i++) {
+        for (var j = 0; j < 6; j ++) {
+            // TODO: merge some of these comparisons
+            characters[i][j] = StringCompare(1, jsonLength);
+            characters[i][j].JSON <== JSON;
+        }
+    }
+  
+    for (var i = 0; i < numKeys; i ++) {
+        // begin ", end ", :, begin ", end ", ","
+
+        // todo: confusing/inefficient. do single-char comparisons
+        characters[i][0].keyOffset <== [keysOffset[i][0] -1, keysOffset[i][0] -1];
+        characters[i][0].attribute <== [34];
+
+        characters[i][1].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
+        characters[i][1].attribute <== [34];
+
+        characters[i][2].keyOffset <== [valuesOffset[i][0] -1, valuesOffset[i][0] -1];
+        characters[i][2].attribute <== [34];
+
+        characters[i][3].keyOffset <== [valuesOffset[i][1]+1, valuesOffset[i][1] +1];
+        characters[i][3].attribute <== [34];
+
+        characters[i][4].keyOffset <== [keysOffset[i][1] +2, keysOffset[i][1] +2];
+        characters[i][4].attribute <== [58];
+
+        if (i < numKeys - 1) {
+            characters[i][5].keyOffset <== [valuesOffset[i][1]+2, valuesOffset[i][1] +2];
+            characters[i][5].attribute <== [44];
+        }
+    }
+
+    keysOffset[0][0] === 2;
+    JSON[0] === 123;
+
+    valuesOffset[numKeys-1][1] === jsonLength - 3;
+    JSON[jsonLength -1] === 125;
+
+    // for (var j = keysOffset[0]; j < keysOffset[1]; j++) {
     //     // isEqualOps[j] = IsEqual();
     //     isEqualOps[j].in[0] <== JSON[j];
     //     isEqualOps[j].in[1] <== 1;
@@ -137,7 +177,7 @@ template Example(jsonLength, numKeys, attrLengths) {
     // }
 
     // for (var i = 0; i < keyOffsetLength; i++) {
-    //     for (var j = keyOffset[i][0]; j < keyOffset[i][1]; j++) {
+    //     for (var j = keysOffset[i][0]; j < keysOffset[i][1]; j++) {
     //         // checks offsetKey range is key (key )
     //         isEqualOps[i][j] === isEqual();
     //         isEqualOps[i][j].in[0] <== JSON[j];
@@ -153,11 +193,12 @@ template Example(jsonLength, numKeys, attrLengths) {
 }
 
 component main {
-    public [ JSON, keyOffset, attributes ]
-} = Example(10, 1, [3]);
+    public [ JSON, keysOffset, attributes ]
+} = Example(17, 1, [4]);
 
 /* INPUT = {
-    "JSON": [2, 3, 3, 4, 5, 6, 7, 8, 9, 10],
-    "attributes": [[2, 3, 3, 0, 0, 0, 0, 0, 0, 0]],
-    "keyOffset": [[0, 2]]
+    "JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 125],
+    "attributes": [[110, 97, 109, 101, 0, 0, 0, 0, 0, 0]],
+    "keysOffset": [[2, 5]],
+    "valuesOffset": [[9, 14]]
 } */
