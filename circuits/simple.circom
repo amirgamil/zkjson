@@ -8,6 +8,7 @@ include "circomlib/multiplexer.circom";
 
 /*
 Publicly known:
+
 - Public key of signer
 - Selected attribute names (also base64)
     (All not mentioned attributes are implied to be redacted)
@@ -37,16 +38,14 @@ Private inputs:
 // 2 goals 
 // 1. make sure json correct
 // 2. make sure attribute predicates constrain
-template Example(jsonLength, attrLength) {
+
+template StringCompare(attrLength, jsonLength) {
+    signal input keyOffset[2];
     signal input JSON[jsonLength];
     signal input attribute[attrLength];
-    signal input keyOffset[2];
-    // signal input valueOffset[2];
-    // signal input keys[jsonLength][5];
-    // signal output maskedJSON[jsonLength];
-
+    signal output outputMatch;
     component isEqualStartOps[jsonLength];
-    component isEqualEndOps[jsonLength];
+    component isEqualEndOps[jsonLength + 1];
     component isEqualNew[jsonLength];
     component multiplexers[jsonLength];
     
@@ -55,34 +54,80 @@ template Example(jsonLength, attrLength) {
     inKey[0] <== 0;
     index[0] <== 0;
 
-    for (var j = 0; j < jsonLength; j++) {
+    // Set the first component to be 0.
+    isEqualEndOps[0] = IsEqual();
+    isEqualEndOps[0].in[0] <== 0;
+    isEqualEndOps[0].in[1] <== 1;
 
+    component attrLengthCorrect = IsEqual();
+    attrLengthCorrect.in[0] <== keyOffset[1] - keyOffset[0] + 1;
+    attrLengthCorrect.in[1] <== attrLength;
+
+    for (var j = 0; j < jsonLength; j++) {
         isEqualStartOps[j] = IsEqual();
-        isEqualEndOps[j] = IsEqual();
+        isEqualEndOps[j + 1] = IsEqual();
         isEqualNew[j] = IsEqual();
 
         isEqualStartOps[j].in[0] <== keyOffset[0];
         isEqualStartOps[j].in[1] <== j;
-        isEqualEndOps[j].in[0] <== keyOffset[1];
-        isEqualEndOps[j].in[1] <== j;
+        isEqualEndOps[j + 1].in[0] <== keyOffset[1];
+        isEqualEndOps[j + 1].in[1] <== j;
 
         // inKey is 1 when you're inside the attribute, and 0 when you're outside
         inKey[j + 1] <== inKey[j] + isEqualStartOps[j].out - isEqualEndOps[j].out;
      
         // index inside attribute array
-        index[j + 1] <== inKey[j] + index[j];
-        
+        index[j + 1] <== inKey[j] + index[j] - isEqualEndOps[j].out;
+        log(index[j + 1]);
+        log(inKey[j + 1]);
+        log("----");      
         multiplexers[j] = Multiplexer(1, attrLength);
         for (var i = 0; i < attrLength; i++) {
              multiplexers[j].inp[i][0] <== attribute[i];
         }
         multiplexers[j].sel <== index[j + 1];
 
+        // LOOP
         isEqualNew[j].in[0] <== multiplexers[j].out[0];
         isEqualNew[j].in[1] <== JSON[j];
         // Either we are outside the key, or the string must match
         1 === (isEqualNew[j].out * inKey[j + 1]) + (1 - inKey[j + 1]);
     }
+
+}
+
+// attrLength is an array of 100
+// assuming only 1 attribute right now
+// @param attrLengths: array[int]
+template Example(jsonLength, numKeys, attrLengths) {
+    signal input JSON[jsonLength];
+    signal input attributes[numKeys][10];
+    signal input keyOffset[numKeys][2];
+    // signal input valueOffset[2];
+    // signal input keys[jsonLength][5];
+    // signal output maskedJSON[jsonLength];
+
+    
+
+    component attrLengthCorrect[numKeys];
+    
+    for (var i = 0; i < numKeys; i++) {
+        attrLengthCorrect[i] = IsEqual();
+       attrLengthCorrect[i].in[0] <== keyOffset[i][1] - keyOffset[i][0] + 1;
+        attrLengthCorrect[i].in[1] <== attrLengths[i];
+        attrLengthCorrect[i].out === 1;
+    }
+    // LOOP
+    component stringMatches[numKeys];
+    for (var i = 0; i < numKeys; i++) {
+        stringMatches[i] = StringCompare(attrLengths[i], jsonLength);
+        for (var attIndex = 0; attIndex < attrLengths[i]; attIndex++) {
+            stringMatches[i].attribute[attIndex] <== attributes[i][attIndex];
+        }
+        stringMatches[i].keyOffset <== keyOffset[i];
+        stringMatches[i].JSON <== JSON;
+    }
+  
 
     // for (var j = keyOffset[0]; j < keyOffset[1]; j++) {
     //     // isEqualOps[j] = IsEqual();
@@ -108,11 +153,11 @@ template Example(jsonLength, attrLength) {
 }
 
 component main {
-    public [ JSON, attribute, keyOffset ]
-} = Example(10, 10);
+    public [ JSON, keyOffset, attributes ]
+} = Example(10, 1, [3]);
 
 /* INPUT = {
-    "JSON": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    "attribute": [1, 2],
-    "keyOffset": [0, 1]
+    "JSON": [2, 3, 3, 4, 5, 6, 7, 8, 9, 10],
+    "attributes": [[2, 3, 3, 0, 0, 0, 0, 0, 0, 0]],
+    "keyOffset": [[0, 2]]
 } */
