@@ -2,5 +2,11 @@
 def string_to_array(json):
     return [ord(x) for x in json]
 
-print(string_to_array("{\"name\":\"foobar\"}"))
-print(len("{\"name\":\"foobar\"}"))
+def dict_to_string(dictionary):
+    # remove spaces and replace single quotes with double quotes
+    string = str(dictionary)
+    string = string.replace("'", '"')
+    string = string.replace(" ", "")
+    return string
+
+print(string_to_array(dict_to_string({"name": "foobar", "value": "123"})))
