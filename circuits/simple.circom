@@ -244,6 +244,13 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
         }
     }
 
+    for (var i = 0; i < numKeys; i++) {
+        keysOffset[i][1] === valuesOffset[i][0] - 4; 
+    }
+    for (var i = 0; i < numKeys - 1; i++) {
+        valuesOffset[i][1] + 4 === keysOffset[i+1][0];
+    }
+
     keysOffset[0][0] === 2;
     JSON[0] === 123;
 
