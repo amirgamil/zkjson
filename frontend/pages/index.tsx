@@ -1,5 +1,4 @@
 import Head from "next/head";
-import Image from "next/image";
 import { Inter } from "@next/font/google";
 import styles from "../styles/Home.module.css";
 import { Textarea } from "../components/textarea";
@@ -8,13 +7,13 @@ import { Button } from "../components/button";
 import localforage from "localforage";
 import * as ed from "@noble/ed25519";
 import * as ethers from "ethers";
-
-const inter = Inter({ subsets: ["latin"] });
+import { JsonViewer } from "@textea/json-viewer";
 
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
+    const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         async function checkIsRegistered() {
@@ -36,9 +35,10 @@ export default function Home() {
 
     const signJSON = async () => {
         const privateKey = await localforage.getItem("zkattestorPrivKey");
-        const formattedJSON = JSON.stringify(JSON.parse(jsonText));
-        const signature = await ed.sign(ethers.utils.toUtf8Bytes(formattedJSON), privateKey as string);
-        console.log(signature);
+        const newFormattedJSON = JSON.stringify(JSON.parse(jsonText));
+        setFormattedJSON(newFormattedJSON);
+        const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
+        console.log(ed.Signature.fromHex(signature));
     };
 
     return (
@@ -54,21 +54,30 @@ export default function Home() {
                     <h1 className="py-4">zkAttestor</h1>
                 </div>
 
-                {!hasKeypair ? (
-                    "generating your key pair..."
-                ) : (
-                    <div className="w-full flex flex-col items-center justify-center">
-                        <Textarea
-                            placeholder={"Paste your JSON string"}
-                            value={jsonText}
-                            onChangeHandler={setJsonText}
-                        />
-                        <div className="py-4"></div>
-                        <Button backgroundColor="black" color="white" onClickHandler={signJSON}>
-                            {isLoading ? "loading..." : "Sign JSON"}
-                        </Button>
-                    </div>
-                )}
+                <div style={{ width: "800px" }} className="flex justify-center items-center">
+                    {!hasKeypair ? (
+                        "generating your key pair..."
+                    ) : (
+                        <div className="w-full flex flex-col items-center justify-center">
+                            <Textarea
+                                placeholder={"Paste your JSON string"}
+                                value={jsonText}
+                                onChangeHandler={setJsonText}
+                            />
+                            <div className="py-4"></div>
+                            <Button backgroundColor="black" color="white" onClickHandler={signJSON}>
+                                {isLoading ? "loading..." : "Sign JSON"}
+                            </Button>
+                        </div>
+                    )}
+
+                    {formattedJSON ? (
+                        <>
+                            <div className="py-2"></div>
+                            <JsonViewer value={formattedJSON} />
+                        </>
+                    ) : null}
+                </div>
             </main>
         </>
     );
