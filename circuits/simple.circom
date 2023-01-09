@@ -64,7 +64,7 @@ template NumberValueCompare(jsonLength) {
     signal temp3[jsonLength];
     signal accumulator[jsonLength + 1];
 
-    accumulator[0] = 0;
+    accumulator[0] <== 0;
 
     for (var j = 0; j < jsonLength; j++) {
         isEqualStartOps[j] = IsEqual();
@@ -212,7 +212,7 @@ template StringKeyCompare(attrLength, jsonLength) {
 // assuming only 1 attribute right now
 // @param attrLengths: array[int]
 // @param attriExtractingIndices array[int] array of offset indices to access
-template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtractingIndices) {
+template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtractingIndices, attriTypes) {
     signal input JSON[jsonLength];
     signal input attributes[numKeys][10];
     signal input values[numAttriExtracting][10];
@@ -221,8 +221,6 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
     // signal input valueOffset[2];
     // signal input keys[jsonLength][5];
     // signal output maskedJSON[jsonLength];
-
-    
 
     component attrLengthCorrect[numKeys];
     
@@ -243,19 +241,25 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
         stringMatches[i].JSON <== JSON;
     }
 
-    component valueMatches[numAttriExtracting];
+    component valueMatchesNumbers[numAttriExtracting];
+    component valueMatchesStrings[numAttriExtracting];
     for (var i = 0; i < numAttriExtracting; i++) {
-        valueMatches[i] = StringValueCompare(jsonLength);
-        for (var attIndex = 0; attIndex < 10; attIndex++) {
-            valueMatches[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
+        // If numbers
+        if (attriTypes[i] == 0) {
+            valueMatchesStrings[i] = StringValueCompare(jsonLength);
+            for (var attIndex = 0; attIndex < 10; attIndex++) {
+                valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
+            }
+            valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+            valueMatchesStrings[i].JSON <== JSON;
         }
-        valueMatches[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
-        valueMatches[i].JSON <== JSON;
-
-        // valueMatches[i] = NumberValueCompare(jsonLength);
-        // valueMatches[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
-        // valueMatches[i].JSON <== JSON;
-        // log(valueMatches[i].out)
+        // If strings
+        else {
+            valueMatchesNumbers[i] = NumberValueCompare(jsonLength);
+            valueMatchesNumbers[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+            valueMatchesNumbers[i].JSON <== JSON;
+            log(valueMatchesNumbers[i].out);
+        }
     }
 
     component characters[numKeys][6];
@@ -306,19 +310,14 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
     // Check that JSON is valid
     valuesOffset[numKeys-1][1] === jsonLength - 3;
     JSON[jsonLength - 1] === 125;
-
-    // part 2
-    // a) checking existence of attribute key
-    // b) checking existence of attribute value
-    // c) extracting value and constraining predicate
 }
 
 component main {
     public [ JSON, keysOffset, attributes ]
-} = Example(31, 2, [4, 5], 2, [0, 1]);
+} = Example(31, 2, [4, 5], 2, [0, 1], [1, 0]);
 
 /* INPUT = {
-	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 50, 51, 34, 125],
+	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 58, 58, 58, 58, 58, 58, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 50, 51, 34, 125],
 	"attributes": [[110, 97, 109, 101, 0, 0, 0, 0, 0, 0], [118, 97, 108, 117, 101, 0, 0, 0, 0, 0]],
 	"values": [[102, 111, 111, 98, 97, 114, 0, 0, 0, 0], [49, 50, 51, 0, 0, 0, 0, 0, 0, 0]],
 	"keysOffset": [[2, 5], [18, 22]],
