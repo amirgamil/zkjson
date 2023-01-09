@@ -206,7 +206,6 @@ template StringKeyCompare(attrLength, jsonLength) {
         // Either we are outside the key, or the string must match
         1 === (isEqualNew[j].out * inKey[j + 1]) + (1 - inKey[j + 1]);
     }
-
 }
 
 // attrLength is an array of 100
