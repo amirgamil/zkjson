@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "../components/button";
 import localforage from "localforage";
 import * as ed from "@noble/ed25519";
+import * as ethers from "ethers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -33,8 +34,11 @@ export default function Home() {
         checkIsRegistered();
     }, []);
 
-    const generateKeyPair = () => {
-        //TODO
+    const signJSON = async () => {
+        const privateKey = await localforage.getItem("zkattestorPrivKey");
+        const formattedJSON = JSON.stringify(JSON.parse(jsonText));
+        const signature = await ed.sign(ethers.utils.toUtf8Bytes(formattedJSON), privateKey as string);
+        console.log(signature);
     };
 
     return (
@@ -51,9 +55,7 @@ export default function Home() {
                 </div>
 
                 {!hasKeypair ? (
-                    <Button backgroundColor="black" color="white" onClickHandler={generateKeyPair}>
-                        {isLoading ? "loading..." : "Generate Keys"}
-                    </Button>
+                    "generating your key pair..."
                 ) : (
                     <div className="w-full flex flex-col items-center justify-center">
                         <Textarea
@@ -62,7 +64,7 @@ export default function Home() {
                             onChangeHandler={setJsonText}
                         />
                         <div className="py-4"></div>
-                        <Button backgroundColor="black" color="white" onClickHandler={generateKeyPair}>
+                        <Button backgroundColor="black" color="white" onClickHandler={signJSON}>
                             {isLoading ? "loading..." : "Sign JSON"}
                         </Button>
                     </div>
