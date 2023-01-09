@@ -266,7 +266,7 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
         // if it's attriTypes is not a 0 or 1, it's a list and the number is the number of the characters
         // in the list (note a list can never have 0 or 1 characters)
         } else {
-            valueMatchesList[i] = ListLength(attriTypes[i]);
+            valueMatchesList[i] = ListVerify(attriTypes[i]);
             valueMatchesList[i].in = values[attrExtractingIndices[i]];
         }
     }
