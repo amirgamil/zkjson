@@ -2,10 +2,41 @@ import Head from "next/head";
 import Image from "next/image";
 import { Inter } from "@next/font/google";
 import styles from "../styles/Home.module.css";
+import { Textarea } from "../components/textarea";
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "../components/button";
+import localforage from "localforage";
+import * as ed from "@noble/ed25519";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
+    const [jsonText, setJsonText] = useState<string>("");
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [hasKeypair, setHasKeypair] = useState<boolean>(false);
+
+    useEffect(() => {
+        async function checkIsRegistered() {
+            const maybePrivKey = await localforage.getItem("zkattestorPrivKey");
+            const maybePubKey = await localforage.getItem("zkattestorPubKey");
+            if (maybePrivKey && maybePubKey) {
+                setHasKeypair(true);
+            } else {
+                setIsLoading(true);
+                const privKey = ed.utils.randomPrivateKey();
+                const publicKey = await ed.getPublicKey(privKey);
+                await localforage.setItem("zkattestorPrivKey", privKey);
+                await localforage.setItem("zkattestorPubKey", publicKey);
+                setIsLoading(false);
+            }
+        }
+        checkIsRegistered();
+    }, []);
+
+    const generateKeyPair = () => {
+        //TODO
+    };
+
     return (
         <>
             <Head>
@@ -16,8 +47,26 @@ export default function Home() {
             </Head>
             <main className={styles.main}>
                 <div className={styles.center}>
-                    <h1>zkAttestor</h1>
+                    <h1 className="py-4">zkAttestor</h1>
                 </div>
+
+                {!hasKeypair ? (
+                    <Button backgroundColor="black" color="white" onClickHandler={generateKeyPair}>
+                        {isLoading ? "loading..." : "Generate Keys"}
+                    </Button>
+                ) : (
+                    <div className="w-full flex flex-col items-center justify-center">
+                        <Textarea
+                            placeholder={"Paste your JSON string"}
+                            value={jsonText}
+                            onChangeHandler={setJsonText}
+                        />
+                        <div className="py-4"></div>
+                        <Button backgroundColor="black" color="white" onClickHandler={generateKeyPair}>
+                            {isLoading ? "loading..." : "Sign JSON"}
+                        </Button>
+                    </div>
+                )}
             </main>
         </>
     );
