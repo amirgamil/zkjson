@@ -2,16 +2,16 @@
 def string_to_array(json):
     return [ord(x) for x in json]
 
-def dict_to_string(dictionary):
+def var_to_string(var):
     # remove spaces and replace single quotes with double quotes
-    string = str(dictionary)
+    string = str(var)
     string = string.replace("'", '"')
     string = string.replace(" ", "")
     return string
 
 def generate_test(dictionary, indices, N=10):
     # generate a testcase from a dictionary and a sorted list of indices
-    string = dict_to_string(dictionary)
+    string = var_to_string(dictionary)
     ascii_string = string_to_array(string)
     print(f"Example({len(string)}, {len(dictionary)}, {[len(k) for k in dictionary.keys()]}, {len(indices)}, {indices});\n")
     print("/* INPUT = {")
@@ -21,6 +21,10 @@ def generate_test(dictionary, indices, N=10):
     for key in dictionary.keys():
         if index in indices:
             val = dictionary[key]
+            if isinstance(val, str):
+                val = f"\"{val}\""
+            else:
+                val = var_to_string(val)
             key_vals.append((key, val))
         index += 1
     attr_arr = []
@@ -35,7 +39,7 @@ def generate_test(dictionary, indices, N=10):
         arr = arr + [0,] * (N - len(arr))
         value_arr.append(arr)
     print(f"\t\"values\": {value_arr},")
-    pair_strings = [f"\"{p[0]}\":\"{p[1]}\"" for p in key_vals]
+    pair_strings = [f"\"{p[0]}\":{p[1]}" for p in key_vals]
     indices = [string.index(p) for p in pair_strings]
     key_offsets = [[index + 1, index + len(key_vals[i][0])] for i, index in enumerate(indices)]
     print(f"\t\"keysOffset\": {key_offsets},")
@@ -45,5 +49,6 @@ def generate_test(dictionary, indices, N=10):
 
 d = dict()
 d["name"] = "foobar"
-d["value"] = "123"
-generate_test(d, [0,1])
+d["value"] = 123
+d["list"] = ["a", 1]
+generate_test(d, [0,1,2])

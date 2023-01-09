@@ -93,7 +93,6 @@ template StringValueCompare(jsonLength) {
     signal input keyOffset[2];
     signal input JSON[jsonLength];
     signal input attribute[10];
-    signal output out[10];
 
     component isEqualStartOps[jsonLength];
     component isEqualEndOps[jsonLength + 1];
@@ -113,7 +112,6 @@ template StringValueCompare(jsonLength) {
     component stringEnd[jsonLength];
     signal temp[jsonLength];
 
-    var outIndex = 0;
     for (var j = 0; j < jsonLength; j++) {
         isEqualStartOps[j] = IsEqual();
         isEqualEndOps[j + 1] = IsEqual();
@@ -313,13 +311,13 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
 }
 
 component main {
-    public [ JSON, keysOffset, attributes ]
-} = Example(31, 2, [4, 5], 2, [0, 1], [1, 0]);
+    public [ JSON, keysOffset, attributes, values, valuesOffset ]
+} = Example(44, 3, [4, 5, 4], 3, [0, 1, 2], [0,1,7]);
 
 /* INPUT = {
-	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 58, 58, 58, 58, 58, 58, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 50, 51, 34, 125],
-	"attributes": [[110, 97, 109, 101, 0, 0, 0, 0, 0, 0], [118, 97, 108, 117, 101, 0, 0, 0, 0, 0]],
-	"values": [[102, 111, 111, 98, 97, 114, 0, 0, 0, 0], [49, 50, 51, 0, 0, 0, 0, 0, 0, 0]],
-	"keysOffset": [[2, 5], [18, 22]],
-	"valuesOffset": [[9, 14], [26, 28]]
+	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 108, 105, 115, 116, 34, 58, 91, 34, 97, 34, 44, 49, 93, 125],
+	"attributes": [[110, 97, 109, 101, 0, 0, 0, 0, 0, 0], [118, 97, 108, 117, 101, 0, 0, 0, 0, 0], [108, 105, 115, 116, 0, 0, 0, 0, 0, 0]],
+	"values": [[34, 102, 111, 111, 98, 97, 114, 34, 0, 0], [49, 50, 51, 0, 0, 0, 0, 0, 0, 0], [91, 34, 97, 34, 44, 49, 93, 0, 0, 0]],
+	"keysOffset": [[2, 5], [18, 22], [30, 33]],
+	"valuesOffset": [[9, 16], [26, 28], [37, 43]]
 } */
