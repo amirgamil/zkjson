@@ -20,8 +20,6 @@ Private inputs:
 - keysOffset[][] (tuple of key start, key end)
 - valueOffset[][] (tuple of value start, value end)
 - key[][] (length of key is number of attributes in JSON, )
-
-
 */
 
 // ‘{"name”:“foobar”}’
@@ -39,9 +37,56 @@ Private inputs:
 // 1. make sure json correct
 // 2. make sure attribute predicates constrain
 
-//TODO: check there isn't an exploit with offset and attrLength
+// TODO: check there isn't an exploit with offset and attrLength
 // template StringCompare(attrLength, jsonLength)
 
+template NumberValueCompare(jsonLength) {
+    signal input keyOffset[2];
+    signal input JSON[jsonLength];
+
+    signal output out;
+
+    component isEqualStartOps[jsonLength];
+    component isEqualEndOps[jsonLength + 1];
+    component multiplexers[jsonLength];
+    
+    signal inKey[jsonLength + 1];
+    inKey[0] <== 0;
+
+    // Set the first component to be 0.
+    isEqualEndOps[0] = IsEqual();
+    isEqualEndOps[0].in[0] <== 0;
+    isEqualEndOps[0].in[1] <== 1;
+
+    component stringEnd[jsonLength];
+    signal temp1[jsonLength];
+    signal temp2[jsonLength];
+    signal temp3[jsonLength];
+    signal accumulator[jsonLength + 1];
+
+    accumulator[0] = 0;
+
+    for (var j = 0; j < jsonLength; j++) {
+        isEqualStartOps[j] = IsEqual();
+        isEqualEndOps[j + 1] = IsEqual();
+
+        isEqualStartOps[j].in[0] <== keyOffset[0];
+        isEqualStartOps[j].in[1] <== j;
+        isEqualEndOps[j + 1].in[0] <== keyOffset[1];
+        isEqualEndOps[j + 1].in[1] <== j;
+
+        // inKey is 1 when you're inside the attribute, and 0 when you're outside
+        inKey[j + 1] <== inKey[j] + isEqualStartOps[j].out - isEqualEndOps[j].out;
+        // multiply by 10 if in Key
+        temp1[j] <== accumulator[j] * inKey[j + 1];
+        temp2[j] <== accumulator[j] + temp1[j] * 9;
+        // add by the number if inside
+        temp3[j] <== JSON[j] - 57;
+        accumulator[j + 1] <== temp2[j] + (inKey[j + 1] * temp3[j]);
+    }
+
+    out <== accumulator[jsonLength];
+}
 
 //[10, 20, 30, 0, 0, 0, 0, 0]
 template StringValueCompare(jsonLength) {
@@ -161,7 +206,6 @@ template StringKeyCompare(attrLength, jsonLength) {
         // Either we are outside the key, or the string must match
         1 === (isEqualNew[j].out * inKey[j + 1]) + (1 - inKey[j + 1]);
     }
-
 }
 
 // attrLength is an array of 100
@@ -207,6 +251,11 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
         }
         valueMatches[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
         valueMatches[i].JSON <== JSON;
+
+        // valueMatches[i] = NumberValueCompare(jsonLength);
+        // valueMatches[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+        // valueMatches[i].JSON <== JSON;
+        // log(valueMatches[i].out)
     }
 
     component characters[numKeys][6];
@@ -254,10 +303,9 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
     keysOffset[0][0] === 2;
     JSON[0] === 123;
 
+    // Check that JSON is valid
     valuesOffset[numKeys-1][1] === jsonLength - 3;
-    JSON[jsonLength -1] === 125;
-
-
+    JSON[jsonLength - 1] === 125;
 
     // part 2
     // a) checking existence of attribute key
