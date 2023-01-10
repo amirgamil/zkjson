@@ -1,4 +1,4 @@
-pragma circom 2.1.0;
+pragma circom 2.1.2;
 
 include "circomlib/comparators.circom";
 include "circomlib/multiplexer.circom";
@@ -58,7 +58,6 @@ template jsonVerify(jsonLength) {
     signal [jsonLength];
     // Check that the first character is "{"
     // State: InKey
-    int (i = 0; i < jsonLength; i++) {
+    
 
-    }
 }

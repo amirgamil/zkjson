@@ -1,7 +1,7 @@
-pragma circom 2.1.0;
+pragma circom 2.1.2;
 
-include "circomlib/comparators.circom";
-include "circomlib/gates.circom";
+include "node_modules/circomlib/circuits/comparators.circom";
+include "node_modules/circomlib/circuits/gates.circom";
 
 template MultiOROld(n) {
     signal input in[n];
