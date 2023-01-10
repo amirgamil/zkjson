@@ -1,9 +1,9 @@
 #!/bin/bash
 
-CIRCUITS_DIR=.
+CIRCUITS_DIR=./circuits/
 PHASE1=./powersOfTau28_hez_final_14.ptau
-BUILD_DIR=./build/main
-CIRCUIT_NAME=main
+BUILD_DIR=./build/json
+CIRCUIT_NAME=json
 
 if [ -f "$PHASE1" ]; then
     echo "Found Phase 1 ptau file"

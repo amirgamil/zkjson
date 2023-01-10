@@ -1,7 +1,7 @@
-pragma circom 2.1.2;
+pragma circom 2.1.0;
 
-include "node_modules/circomlib/circuits/comparators.circom";
-include "node_modules/circomlib/circuits/multiplexer.circom";
+include "../node_modules/circomlib/circuits/comparators.circom";
+include "../node_modules/circomlib/circuits/multiplexer.circom";
 include "./list.circom";
 
 // include "https://github.com/0xPARC/circom-secp256k1/blob/master/circuits/bigint.circom";
@@ -211,7 +211,6 @@ template StringKeyCompare(attrLength, jsonLength) {
 // assuming only 1 attribute right now
 // @param attrLengths: array[int]
 // @param attriExtractingIndices array[int] array of offset indices to access
-// 
 template VerifyJSONLayer(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtractingIndices, attriTypes) {
     signal input JSON[jsonLength];
     signal input attributes[numKeys][10];
