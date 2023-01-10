@@ -82,7 +82,7 @@ template NumberValueCompare(jsonLength) {
         temp1[j] <== accumulator[j] * inKey[j + 1];
         temp2[j] <== accumulator[j] + temp1[j] * 9;
         // add by the number if inside
-        temp3[j] <== JSON[j] - 57;
+        temp3[j] <== JSON[j] - 48;
         accumulator[j + 1] <== temp2[j] + (inKey[j + 1] * temp3[j]);
     }
 
@@ -247,7 +247,7 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
     component valueMatchesList[numAttriExtracting];
     for (var i = 0; i < numAttriExtracting; i++) {
         // If numbers
-        if (attriTypes[i] == 0) {
+        if (attriTypes[attrExtractingIndices[i]] == 0) {
             valueMatchesStrings[i] = StringValueCompare(jsonLength, 10);
             for (var attIndex = 0; attIndex < 10; attIndex++) {
                 valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
@@ -256,7 +256,7 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
             valueMatchesStrings[i].JSON <== JSON;
         }
           // If strings
-        else if (attriTypes[i] == 1) {
+        else if (attriTypes[attrExtractingIndices[i]] == 1) {
             valueMatchesNumbers[i] = NumberValueCompare(jsonLength);
             valueMatchesNumbers[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
             valueMatchesNumbers[i].JSON <== JSON;
@@ -297,22 +297,23 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
     for (var i = 0; i < numKeys; i ++) {
         // begin ", end ", :, begin ", end ", ","
 
-        // // todo: confusing/inefficient. do single-char comparisons
-        // // todo: only do these checks for strings (move to inside string compare)
-        // characters[i][0].keyOffset <== [keysOffset[i][0], keysOffset[i][0]];
-        // characters[i][0].attribute <== [34];
+        // // todo: confusing/inefficien to use StringKeyCompare on single chars?
+        characters[i][0].keyOffset <== [keysOffset[i][0], keysOffset[i][0]];
+        characters[i][0].attribute <== [34];
 
-        // characters[i][1].keyOffset <== [keysOffset[i][1], keysOffset[i][1]];
-        // characters[i][1].attribute <== [34];
+        characters[i][1].keyOffset <== [keysOffset[i][1], keysOffset[i][1]];
+        characters[i][1].attribute <== [34];
 
-        // characters[i][2].keyOffset <== [valuesOffset[i][0], valuesOffset[i][0]];
-        // characters[i][2].attribute <== [34];
+        if (attriTypes[i] == 0) {
+            characters[i][2].keyOffset <== [valuesOffset[i][0], valuesOffset[i][0]];
+            characters[i][2].attribute <== [34];
 
-        // characters[i][3].keyOffset <== [valuesOffset[i][1], valuesOffset[i][1]];
-        // characters[i][3].attribute <== [34];
+            characters[i][3].keyOffset <== [valuesOffset[i][1], valuesOffset[i][1]];
+            characters[i][3].attribute <== [34];
+        }
 
-        // characters[i][4].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
-        // characters[i][4].attribute <== [58];
+        characters[i][4].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
+        characters[i][4].attribute <== [58];
 
         if (i < numKeys - 1) {
             characters[i][5].keyOffset <== [valuesOffset[i][1]+1, valuesOffset[i][1] +1];
@@ -337,12 +338,12 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
 
 component main {
     public [ JSON, keysOffset, attributes ]
-} = Example(46, 3, [6, 7, 6], 3, [0, 1, 2], [0, 0, 7]);
+} = Example(44, 3, [6, 7, 6], 3, [0, 1, 2], [0, 1, 7]);
 
 /* INPUT = {
-	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 50, 51, 34, 44, 34, 108, 105, 115, 116, 34, 58, 91, 34, 97, 34, 44, 49, 93, 125],
+	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 108, 105, 115, 116, 34, 58, 91, 34, 97, 34, 44, 49, 93, 125],
 	"attributes": [[34, 110, 97, 109, 101, 34, 0, 0, 0, 0], [34, 118, 97, 108, 117, 101, 34, 0, 0, 0], [34, 108, 105, 115, 116, 34, 0, 0, 0, 0]],
-	"values": [[34, 102, 111, 111, 98, 97, 114, 34, 0, 0], [34, 49, 50, 51, 34, 0, 0, 0, 0, 0], [91, 34, 97, 34, 44, 49, 93, 0, 0, 0]],
-	"keysOffset": [[1, 6], [17, 23], [31, 36]],
-	"valuesOffset": [[8, 15], [25, 29], [38, 44]]
+	"values": [[34, 102, 111, 111, 98, 97, 114, 34, 0, 0], [123, 0, 0, 0, 0, 0, 0, 0, 0, 0], [91, 34, 97, 34, 44, 49, 93, 0, 0, 0]],
+	"keysOffset": [[1, 6], [17, 23], [29, 34]],
+	"valuesOffset": [[8, 15], [25, 27], [36, 42]]
 } */
