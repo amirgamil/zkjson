@@ -9,12 +9,37 @@ import * as ed from "@noble/ed25519";
 import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
+import { preprocessJson } from "../helpers/preprocessor";
+import { format } from "path";
+
+
+interface JSON_EL {
+    value: string;
+    ticked: boolean;
+}
+
+interface JSON_STORE {
+    [key: string]: JSON_EL;
+}
+
+
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
+    const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
 
+    const setKeyInDataStore = (key: string, state: boolean) => {
+        let newJson = {...JsonDataStore};
+        if (newJson[key]) newJson[key].ticked = state;
+        setJsonDataStore(newJson);
+    }
+    
+    const handleCheckmarkCheck = (event, key: string) => {
+        setKeyInDataStore(key, event.target.checked);
+    };
+    
     const [json, setJson] = useState({});
 
     useEffect(() => {
@@ -49,9 +74,22 @@ export default function Home() {
         const privateKey = await localforage.getItem("zkattestorPrivKey");
         const newFormattedJSON = JSON.stringify(JSON.parse(jsonText));
         setFormattedJSON(newFormattedJSON);
+
+        // Populate JSON_STORE with data from JSON.parse(jsonText);
+        let newJsonDataStore: JSON_STORE = {};
+        let parsedJson = JSON.parse(jsonText);
+        Object.keys(parsedJson).forEach((key) => {
+            newJsonDataStore[key] = {
+                value: parsedJson[key],
+                ticked: false
+            }
+        })
+        setJsonDataStore(newJsonDataStore);
+
         const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
-        console.log(ed.Signature.fromHex(signature));
     };
+
+    console.log(JsonDataStore);
 
     return (
         <>
@@ -89,8 +127,42 @@ export default function Home() {
                             <JsonViewer value={formattedJSON} />
                         </>
                     ) : null}
+                    <br/>
+
+                    <p className="mb-2">Select JSON elements to reveal in ZK-proof</p>
+
+                    <ul>
+                        <>
+                            {
+                                Object.keys(JsonDataStore).map(
+                                    (key) => {
+                                        return <>
+                                            <p key={key}>
+                                                <label className="inline-flex items-center ml-6">
+                                                    <input 
+                                                        type="checkbox"
+                                                        className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                                                        onChange={ (e) => handleCheckmarkCheck(e, key) }
+                                                        checked={ JsonDataStore[key] ? JsonDataStore[key].ticked: false}
+                                                    />
+                                                </label>
+                                                <strong className="mb-4">{key}:</strong> {JsonDataStore[key]['value']}
+                                            </p>
+                                        </>
+                                    }
+                                )
+                            }
+                        </>
+                    </ul>
+                    {/* This should build the circuit, and 'attest' to certain values of the JSON */}
+                    <Button backgroundColor="black" color="white" onClickHandler={signJSON}>
+                        {isLoading ? "loading..." : "Build Circuit & Generate Proof"}
+                    </Button>
                 </div>
             </main>
         </>
     );
 }
+
+
+
