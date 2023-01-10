@@ -4,7 +4,7 @@ include "circomlib/comparators.circom";
 
 template getCharType() {
   signal input in; // ascii value
-  signal output out[8]; // 
+  signal output out[9]; // 
 
   component equals[6];
   for (var i = 0; i < 6; i ++) {
@@ -49,6 +49,10 @@ template getCharType() {
   }
   out[6] <== inRange[0].out;
   out[7] <== inRange[1].out + inRange[2].out;
+
+  component equalsQuote = IsEqual();
+  equalsQuote.in[0] <== in;
+  equalsQuote.in[1] <== 34;
 }
 
 // @jsonProgramSize = large constant for max size json
@@ -63,7 +67,12 @@ template JsonFull(jsonProgramSize, stackDepth) {
     signal stackPtr[jsonProgramSize + 1];
     signal stackPtr[jsonProgramSize + 1];
 
-    signal states[jsonProgramSize][8];
+    signal states[jsonProgramSize+1][8];
+
+    states[0][0] === 1;
+    for (var i = 1; i < 8; i ++) {
+      states[0][i] === 0;
+    }
     
     // 
     component gt[jsonProgramSize][stackDepth];
@@ -82,6 +91,33 @@ template JsonFull(jsonProgramSize, stackDepth) {
 
     for (var i = 0; i < jsonProgramSize; i++) {
       charTypes[i] = getCharType();
+
+      charTypes[i].in <== jsonProgram[i];
+      // charTypes[i].out is 1-hot encoding of type of character
+      // states are } { , [ ] : 0-9 a-Z "
+
+      // find new state
+      states[i+1][1] <== states[i][0] * charTypes[i].out[1] + states[i][7] * charTypes[i].out[2] + states[i][3] * charTypes[i].out[1] + states[i][4] * charTypes[i].out[2];
+
+      // Transition to 3
+      states[i+1][2] <== states[i][5] * charTypes[i].out[8];
+
+      // Transition to 4
+      states[i+1][3] <== states[i][2] * charTypes[i].out[5];
+
+      // Transition to 5
+      states[i+1][4] <== states[i][6] * charTypes[i].out[8] + states[i][4] * charTypes[i].out[0] + states[i][7] * charTypes[i].out[0] + states[i][1] * charTypes[i].out[0];
+
+      // Transition to 6
+      states[i+1][5] <== states[i][1] * echarTypes[i].out[8] + states[i][5] * (1 - charTypes[i].out[8]);
+
+      // Transition to 7
+      states[i+1][6] <== states[i][3] * charTypes[i].out[8] + states[i][6] * (1 - charTypes[i].out[8]);
+
+      // Transition to 8
+      states[i+1][7] <== states[i][3] * charTypes[i].out[6] + states[i][7] * charTypes[i].out[6];
+
+
       for (var j = 0; j < stackDepth; j++) {
         gt[i][j] = LessThan(n);
         eq[i][j] = IsEqual(n);
@@ -93,14 +129,7 @@ template JsonFull(jsonProgramSize, stackDepth) {
         gt[i][j].in[1] <== stackPtr[i];
         jsonStack[i + 1][j] <== jsonStack[i][j] * gt[i][j].out + eq[i][j].out * ;
       }
-
-      charTypes[i].in <== jsonProgram[i];
-      charTypes[i].out // 1-hot encoding of type of character
     }
-
-    // { = 123, } = 125, , = 44, [ = 91, ] = 93, : = 58, 0-9 = 48-57, a-z = 97-122, A-Z = 65-90
-
-  
 }
 
-component main { public [ bfProgram ] } = BrainF(164, 5000);
+component main { public [ bfProgram ] } = JsonFull(164, 5000);
