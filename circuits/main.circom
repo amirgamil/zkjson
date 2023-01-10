@@ -89,6 +89,8 @@ template NumberValueCompare(jsonLength) {
     out <== accumulator[jsonLength];
 }
 
+
+
 //[10, 20, 30, 0, 0, 0, 0, 0]
 template StringValueCompare(jsonLength) {
     signal input keyOffset[2];
@@ -144,7 +146,7 @@ template StringValueCompare(jsonLength) {
         stringEnd[j] = IsEqual();
         stringEnd[j].in[0] <== multiplexers[j].out[0];
         stringEnd[j].in[1] <== 0;
-            // Either we are outside the key, or the string must match
+        // Either we are outside the key, or the string must match
         temp[j] <== (isEqualNew[j].out * inKey[j + 1]) + (1 - inKey[j + 1]); 
         1 === temp[j] * (1 - stringEnd[j].out) + stringEnd[j].out;        
     }
@@ -211,9 +213,11 @@ template StringKeyCompare(attrLength, jsonLength) {
 // assuming only 1 attribute right now
 // @param attrLengths: array[int]
 // @param attriExtractingIndices array[int] array of offset indices to access
+// 
 template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtractingIndices, attriTypes) {
     signal input JSON[jsonLength];
     signal input attributes[numKeys][10];
+    // note if values is a number, the number is the first index of the array
     signal input values[numAttriExtracting][10];
     signal input keysOffset[numKeys][2];
     signal input valuesOffset[numKeys][2];
@@ -258,16 +262,21 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
             valueMatchesNumbers[i] = NumberValueCompare(jsonLength);
             valueMatchesNumbers[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
             valueMatchesNumbers[i].JSON <== JSON;
-            log(valueMatchesNumbers[i].out);
+            // if values is a number it will be the first element of the array
+            valueMatchesNumbers[i].out === values[attrExtractingIndices[i]][0];
         // If lists
         // if it's attriTypes is not a 0 or 1, it's a list and the number is the number of the characters
         // in the list (note a list can never have 0 or 1 characters)
         } else {
+            // verify list formatted correctly
             valueMatchesList[i] = ListVerify(attriTypes[i]);
             for (var j = 0; j < attriTypes[i]; j++) {
                 valueMatchesList[i].in[j] <== values[attrExtractingIndices[i]][j];
             }
             valueMatchesList[i].out === 1;
+
+            // verify list values match
+
         }
     }
 
