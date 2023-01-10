@@ -23,9 +23,5 @@ template InRange(n) {
     lessUpperBound.in[1] <== right;
     greaterLowerBound.in[1] <== left;
 
-    component and = AND();
-    and.a <== lessUpperBound.out;
-    and.b <== greaterLowerBound.out;
-    out <== and.out;
-    
+    out <== lessUpperBound.out * greaterLowerBound.out;
 }
