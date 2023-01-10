@@ -14,7 +14,16 @@ def generate_test(dictionary, indices, N=10):
     # TODO: support new circuit param
     string = var_to_string(dictionary)
     ascii_string = string_to_array(string)
-    print(f"Example({len(string)}, {len(dictionary)}, {[len(k)+2 for k in dictionary.keys()]}, {len(indices)}, {indices});\n")
+
+    types = []
+    for v in dictionary.values():
+        if isinstance(v, str):
+            types.append(0)
+        elif isinstance(v, int):
+            types.append(1)
+        else:
+            types.append(len(var_to_string(v)))
+    print(f"Example({len(string)}, {len(dictionary)}, {[len(k)+2 for k in dictionary.keys()]}, {len(indices)}, {indices}, {types});\n")
     print("/* INPUT = {")
     print(f"\t\"JSON\": {ascii_string},")
     key_vals = []
