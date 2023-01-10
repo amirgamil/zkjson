@@ -293,22 +293,23 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
     for (var i = 0; i < numKeys; i ++) {
         // begin ", end ", :, begin ", end ", ","
 
-        // // todo: confusing/inefficient. do single-char comparisons
-        // // todo: only do these checks for strings (move to inside string compare)
-        // characters[i][0].keyOffset <== [keysOffset[i][0], keysOffset[i][0]];
-        // characters[i][0].attribute <== [34];
+        // // todo: confusing/inefficien to use StringKeyCompare on single chars?
+        characters[i][0].keyOffset <== [keysOffset[i][0], keysOffset[i][0]];
+        characters[i][0].attribute <== [34];
 
-        // characters[i][1].keyOffset <== [keysOffset[i][1], keysOffset[i][1]];
-        // characters[i][1].attribute <== [34];
+        characters[i][1].keyOffset <== [keysOffset[i][1], keysOffset[i][1]];
+        characters[i][1].attribute <== [34];
 
-        // characters[i][2].keyOffset <== [valuesOffset[i][0], valuesOffset[i][0]];
-        // characters[i][2].attribute <== [34];
+        if (attriTypes[i] == 0) {
+            characters[i][2].keyOffset <== [valuesOffset[i][0], valuesOffset[i][0]];
+            characters[i][2].attribute <== [34];
 
-        // characters[i][3].keyOffset <== [valuesOffset[i][1], valuesOffset[i][1]];
-        // characters[i][3].attribute <== [34];
+            characters[i][3].keyOffset <== [valuesOffset[i][1], valuesOffset[i][1]];
+            characters[i][3].attribute <== [34];
+        }
 
-        // characters[i][4].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
-        // characters[i][4].attribute <== [58];
+        characters[i][4].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
+        characters[i][4].attribute <== [58];
 
         if (i < numKeys - 1) {
             characters[i][5].keyOffset <== [valuesOffset[i][1]+1, valuesOffset[i][1] +1];
