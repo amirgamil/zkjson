@@ -52,6 +52,8 @@ template getCharType() {
   component equalsQuote = IsEqual();
   equalsQuote.in[0] <== in;
   equalsQuote.in[1] <== 34;
+
+  out[8] <== equalsQuote.out;
 }
 
 // @jsonProgramSize = large constant for max size json
