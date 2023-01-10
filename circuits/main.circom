@@ -267,7 +267,7 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
             for (var j = 0; j < attriTypes[i]; j++) {
                 valueMatchesList[i].in[j] <== values[attrExtractingIndices[i]][j];
             }
-            
+            valueMatchesList[i].out === 1;
         }
     }
 
@@ -298,8 +298,8 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
         // characters[i][3].keyOffset <== [valuesOffset[i][1], valuesOffset[i][1]];
         // characters[i][3].attribute <== [34];
 
-        characters[i][4].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
-        characters[i][4].attribute <== [58];
+        // characters[i][4].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
+        // characters[i][4].attribute <== [58];
 
         if (i < numKeys - 1) {
             characters[i][5].keyOffset <== [valuesOffset[i][1]+1, valuesOffset[i][1] +1];
@@ -324,7 +324,7 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
 
 component main {
     public [ JSON, keysOffset, attributes ]
-} = Example(46, 3, [6, 7, 6], 3, [0, 1, 2], [1, 0, 7]);
+} = Example(46, 3, [6, 7, 6], 3, [0, 1, 2], [0, 0, 7]);
 
 /* INPUT = {
 	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 50, 51, 34, 44, 34, 108, 105, 115, 116, 34, 58, 91, 34, 97, 34, 44, 49, 93, 125],
