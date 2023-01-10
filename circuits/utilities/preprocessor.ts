@@ -26,6 +26,7 @@ type JsonCircuitInput = {
 
 const ATTR_VAL_MAX_LENGTH = 10; // TODO: idk
 
+// TODO: update offsets to now include quotes for strings
 function preprocessJson(obj: Object, attributes: string[]): JsonCircuitInput | null {
 	for (const attr of attributes) {
 		if (!(attr in obj)) {

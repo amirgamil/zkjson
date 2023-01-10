@@ -90,18 +90,16 @@ template NumberValueCompare(jsonLength) {
 }
 
 
-
-//[10, 20, 30, 0, 0, 0, 0, 0]
-template StringValueCompare(jsonLength) {
+template StringValueCompare(jsonLength, LARGE_CONSTANT) {
     signal input keyOffset[2];
     signal input JSON[jsonLength];
-    signal input attribute[10];
+    signal input attribute[LARGE_CONSTANT];
 
     component isEqualStartOps[jsonLength];
     component isEqualEndOps[jsonLength + 1];
     component isEqualNew[jsonLength];
     component multiplexers[jsonLength];
-    
+
     signal inKey[jsonLength + 1];
     signal index[jsonLength + 1];
     inKey[0] <== 0;
@@ -133,8 +131,8 @@ template StringValueCompare(jsonLength) {
         // log(index[j + 1]);
         // log(inKey[j + 1]);
         // log("----");      
-        multiplexers[j] = Multiplexer(1, 10);
-        for (var i = 0; i < 10; i++) {
+        multiplexers[j] = Multiplexer(1, LARGE_CONSTANT);
+        for (var i = 0; i < LARGE_CONSTANT; i++) {
              multiplexers[j].inp[i][0] <== attribute[i];
         }
         multiplexers[j].sel <== index[j + 1];
@@ -250,7 +248,7 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
     for (var i = 0; i < numAttriExtracting; i++) {
         // If numbers
         if (attriTypes[i] == 0) {
-            valueMatchesStrings[i] = StringValueCompare(jsonLength);
+            valueMatchesStrings[i] = StringValueCompare(jsonLength, 10);
             for (var attIndex = 0; attIndex < 10; attIndex++) {
                 valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
             }
@@ -275,8 +273,14 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
             }
             valueMatchesList[i].out === 1;
 
-            // verify list values match
-
+            // verify actual list values match according to the JSON
+            // provide a larger constant 
+            valueMatchesStrings[i] = StringValueCompare(jsonLength, attriTypes[i]);
+            for (var attIndex = 0; attIndex < attriTypes[i]; attIndex++) {
+                valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
+            }
+            valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+            valueMatchesStrings[i].JSON <== JSON;
         }
     }
 
