@@ -29,24 +29,17 @@ export default function Home() {
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
-    const [isChecked, setIsChecked] = useState<boolean>(false);
 
     const setKeyInDataStore = (key: string, state: boolean) => {
-        console.log(JsonDataStore);
-
-        let newJson = JsonDataStore;
-        newJson[key].ticked = state;
+        let newJson = {...JsonDataStore};
+        if (newJson[key]) newJson[key].ticked = state;
         setJsonDataStore(newJson);
-
-        console.log(JsonDataStore);
     }
     
     const handleCheckmarkCheck = (event, key: string) => {
         setKeyInDataStore(key, event.target.checked);
-        setIsChecked(event.target.checked);
     };
-
-
+    
     const [json, setJson] = useState({});
 
     useEffect(() => {
@@ -96,6 +89,8 @@ export default function Home() {
         const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
     };
 
+    console.log(JsonDataStore);
+
     return (
         <>
             <Head>
@@ -132,35 +127,31 @@ export default function Home() {
                             <JsonViewer value={formattedJSON} />
                         </>
                     ) : null}
-
+                    <br/>
+                    <p className="mb-2">Select JSON elements to reveal in ZK-proof</p>
                     <ul>
-                    {JsonDataStore?
                         <>
                             {
                                 Object.keys(JsonDataStore).map(
                                     (key) => {
-                                        console.log(JsonDataStore[key].ticked);
                                         return <>
                                             <p key={key}>
-                                                <strong>{key}:</strong> {JsonDataStore[key]['value']}
+                                                <label className="inline-flex items-center ml-6">
+                                                    <input 
+                                                        type="checkbox"
+                                                        className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                                                        onChange={ (e) => handleCheckmarkCheck(e, key) }
+                                                        checked={ JsonDataStore[key] ? JsonDataStore[key].ticked: false}
+                                                    />
+                                                </label>
+                                                <strong className="mb-4">{key}:</strong> {JsonDataStore[key]['value']}
                                             </p>
-                                            <label className="inline-flex items-center">
-                                                <input 
-                                                    type="checkbox"
-                                                    className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                                                    onChange={ (e) => handleCheckmarkCheck(e, key) }
-                                                    checked={ JsonDataStore[key].ticked ? JsonDataStore[key].ticked: false}
-                                                />
-                                                <span className="ml-2">Option 1</span>
-                                            </label>
-
                                         </>
                                     }
                                 )
                             }
-                        </> : <h1>hello</h1>
-                    }
-                </ul>
+                        </>
+                    </ul>
                 </div>
             </main>
         </>
