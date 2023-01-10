@@ -128,7 +128,9 @@ export default function Home() {
                         </>
                     ) : null}
                     <br/>
+
                     <p className="mb-2">Select JSON elements to reveal in ZK-proof</p>
+
                     <ul>
                         <>
                             {
@@ -152,6 +154,10 @@ export default function Home() {
                             }
                         </>
                     </ul>
+                    {/* This should build the circuit, and 'attest' to certain values of the JSON */}
+                    <Button backgroundColor="black" color="white" onClickHandler={signJSON}>
+                        {isLoading ? "loading..." : "Build Circuit & Generate Proof"}
+                    </Button>
                 </div>
             </main>
         </>
