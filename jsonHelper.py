@@ -54,6 +54,6 @@ d = dict()
 d["name"] = "foobar"
 d["value"] = "123"
 # d["value"] = 123
-# d["list"] = ["a", 1]
+d["list"] = ["a",1]
 # generate_test(d, [0,1,2])
-generate_test(d, [0,1])
+generate_test(d, [0,1,2])

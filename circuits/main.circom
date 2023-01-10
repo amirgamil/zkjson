@@ -2,7 +2,7 @@ pragma circom 2.1.0;
 
 include "circomlib/comparators.circom";
 include "circomlib/multiplexer.circom";
-import "./list.circom";
+include "./list.circom";
 
 // include "https://github.com/0xPARC/circom-secp256k1/blob/master/circuits/bigint.circom";
 
@@ -94,7 +94,6 @@ template StringValueCompare(jsonLength) {
     signal input keyOffset[2];
     signal input JSON[jsonLength];
     signal input attribute[10];
-    signal output out[10];
 
     component isEqualStartOps[jsonLength];
     component isEqualEndOps[jsonLength + 1];
@@ -114,7 +113,6 @@ template StringValueCompare(jsonLength) {
     component stringEnd[jsonLength];
     signal temp[jsonLength];
 
-    var outIndex = 0;
     for (var j = 0; j < jsonLength; j++) {
         isEqualStartOps[j] = IsEqual();
         isEqualEndOps[j + 1] = IsEqual();
@@ -244,7 +242,6 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
 
     component valueMatchesNumbers[numAttriExtracting];
     component valueMatchesStrings[numAttriExtracting];
-    // doesn't actually match arrays, just checks an array is well structured
     component valueMatchesList[numAttriExtracting];
     for (var i = 0; i < numAttriExtracting; i++) {
         // If numbers
@@ -256,7 +253,7 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
             valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
             valueMatchesStrings[i].JSON <== JSON;
         }
-        // If strings
+          // If strings
         else if (attriTypes[i] == 1) {
             valueMatchesNumbers[i] = NumberValueCompare(jsonLength);
             valueMatchesNumbers[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
@@ -267,7 +264,10 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
         // in the list (note a list can never have 0 or 1 characters)
         } else {
             valueMatchesList[i] = ListVerify(attriTypes[i]);
-            valueMatchesList[i].in = values[attrExtractingIndices[i]];
+            for (var j = 0; j < attriTypes[i]; j++) {
+                valueMatchesList[i].in[j] <== values[attrExtractingIndices[i]][j];
+            }
+            
         }
     }
 
@@ -284,51 +284,52 @@ template Example(jsonLength, numKeys, attrLengths, numAttriExtracting, attrExtra
     for (var i = 0; i < numKeys; i ++) {
         // begin ", end ", :, begin ", end ", ","
 
-        // todo: confusing/inefficient. do single-char comparisons
-        characters[i][0].keyOffset <== [keysOffset[i][0] -1, keysOffset[i][0] -1];
-        characters[i][0].attribute <== [34];
+        // // todo: confusing/inefficient. do single-char comparisons
+        // // todo: only do these checks for strings (move to inside string compare)
+        // characters[i][0].keyOffset <== [keysOffset[i][0], keysOffset[i][0]];
+        // characters[i][0].attribute <== [34];
 
-        characters[i][1].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
-        characters[i][1].attribute <== [34];
+        // characters[i][1].keyOffset <== [keysOffset[i][1], keysOffset[i][1]];
+        // characters[i][1].attribute <== [34];
 
-        characters[i][2].keyOffset <== [valuesOffset[i][0] -1, valuesOffset[i][0] -1];
-        characters[i][2].attribute <== [34];
+        // characters[i][2].keyOffset <== [valuesOffset[i][0], valuesOffset[i][0]];
+        // characters[i][2].attribute <== [34];
 
-        characters[i][3].keyOffset <== [valuesOffset[i][1]+1, valuesOffset[i][1] +1];
-        characters[i][3].attribute <== [34];
+        // characters[i][3].keyOffset <== [valuesOffset[i][1], valuesOffset[i][1]];
+        // characters[i][3].attribute <== [34];
 
-        characters[i][4].keyOffset <== [keysOffset[i][1] +2, keysOffset[i][1] +2];
+        characters[i][4].keyOffset <== [keysOffset[i][1] +1, keysOffset[i][1] +1];
         characters[i][4].attribute <== [58];
 
         if (i < numKeys - 1) {
-            characters[i][5].keyOffset <== [valuesOffset[i][1]+2, valuesOffset[i][1] +2];
+            characters[i][5].keyOffset <== [valuesOffset[i][1]+1, valuesOffset[i][1] +1];
             characters[i][5].attribute <== [44];
         }
     }
 
     for (var i = 0; i < numKeys; i++) {
-        keysOffset[i][1] === valuesOffset[i][0] - 4; 
+        keysOffset[i][1] === valuesOffset[i][0] - 2;
     }
     for (var i = 0; i < numKeys - 1; i++) {
-        valuesOffset[i][1] + 4 === keysOffset[i+1][0];
+        valuesOffset[i][1] + 2 === keysOffset[i+1][0];
     }
 
-    keysOffset[0][0] === 2;
+    keysOffset[0][0] === 1;
     JSON[0] === 123;
 
     // Check that JSON is valid
-    valuesOffset[numKeys-1][1] === jsonLength - 3;
+    valuesOffset[numKeys-1][1] === jsonLength - 2;
     JSON[jsonLength - 1] === 125;
 }
 
 component main {
     public [ JSON, keysOffset, attributes ]
-} = Example(31, 2, [4, 5], 2, [0, 1], [1, 0]);
+} = Example(46, 3, [6, 7, 6], 3, [0, 1, 2], [1, 0, 7]);
 
 /* INPUT = {
-	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 58, 58, 58, 58, 58, 58, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 50, 51, 34, 125],
-	"attributes": [[110, 97, 109, 101, 0, 0, 0, 0, 0, 0], [118, 97, 108, 117, 101, 0, 0, 0, 0, 0]],
-	"values": [[102, 111, 111, 98, 97, 114, 0, 0, 0, 0], [49, 50, 51, 0, 0, 0, 0, 0, 0, 0]],
-	"keysOffset": [[2, 5], [18, 22]],
-	"valuesOffset": [[9, 14], [26, 28]]
+	"JSON": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 34, 49, 50, 51, 34, 44, 34, 108, 105, 115, 116, 34, 58, 91, 34, 97, 34, 44, 49, 93, 125],
+	"attributes": [[34, 110, 97, 109, 101, 34, 0, 0, 0, 0], [34, 118, 97, 108, 117, 101, 34, 0, 0, 0], [34, 108, 105, 115, 116, 34, 0, 0, 0, 0]],
+	"values": [[34, 102, 111, 111, 98, 97, 114, 34, 0, 0], [34, 49, 50, 51, 34, 0, 0, 0, 0, 0], [91, 34, 97, 34, 44, 49, 93, 0, 0, 0]],
+	"keysOffset": [[1, 6], [17, 23], [31, 36]],
+	"valuesOffset": [[8, 15], [25, 29], [38, 44]]
 } */

@@ -54,7 +54,7 @@ export default function Home() {
                     <h1 className="py-4">zkAttestor</h1>
                 </div>
 
-                <div style={{ width: "800px" }} className="flex justify-center items-center">
+                <div style={{ width: "800px" }} className="flex flex-col justify-center items-center">
                     {!hasKeypair ? (
                         "generating your key pair..."
                     ) : (
