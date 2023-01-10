@@ -50,7 +50,7 @@ function preprocessJson(obj: Object, attributes: string[]): JsonCircuitInput | n
 	})
 
 	const preprocessAttrs = attributes.map(attr => {
-		let res = [];
+		let res: Ascii[] = [];
 		for (let i = 0; i < ATTR_VAL_MAX_LENGTH; i++) {
 			if (i < attr.length) {
 				res.push(attr.charCodeAt(i));
@@ -63,7 +63,7 @@ function preprocessJson(obj: Object, attributes: string[]): JsonCircuitInput | n
 
 	const values = valuesOffsets.map(valueOffset => {
 		const valString = jsonString.substring(valueOffset[0], valueOffset[1]+1);
-		let res = [];
+		let res: Ascii[] = [];
 		for (let i = 0; i < ATTR_VAL_MAX_LENGTH; i++) {
 			if (i < valString.length) {
 				res.push(valString.charCodeAt(i));
