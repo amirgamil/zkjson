@@ -30,6 +30,7 @@ const Container = styled.div`
         resize: none;
         position: absolute;
         background: white;
+        color: black;
         opacity: 0.8;
         border-radius: 8px;
         color: black;
