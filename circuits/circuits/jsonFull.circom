@@ -1,6 +1,7 @@
 pragma circom 2.1.0;
 
 include "circomlib/comparators.circom";
+include "./inRange.circom";
 
 template getCharType() {
   signal input in; // ascii value
@@ -30,23 +31,21 @@ template getCharType() {
     equals[i].in[1] <== in;
     out[i] <== equals[i].out;
   }
+
   component inRange[3];
-  for (var i = 0; i < 3; i ++) {
-    inRange[i] = InRange();
+  for (var i = 0; i < 3; i++) {
+    inRange[i] = InRange(8);
     inRange[i].in <== in;
   }
-  if (i == 0) {
-    inRange[i].left <== 48;
-    inRange[i].right <== 57;
-  }
-  else if (i == 1) {
-    inRange[i].left <== 97;
-    inRange[i].right <== 122;
-  }
-  else {
-    inRange[i].left <== 65;
-    inRange[i].right <== 90;
-  }
+  inRange[0].left <== 48;
+  inRange[0].right <== 57;
+
+  inRange[1].left <== 97;
+  inRange[1].right <== 122;
+
+  inRange[2].left <== 65;
+  inRange[2].right <== 90;
+
   out[6] <== inRange[0].out;
   out[7] <== inRange[1].out + inRange[2].out;
 
@@ -59,19 +58,19 @@ template getCharType() {
 template JsonFull(jsonProgramSize, stackDepth) {
     // string of all the json
     signal input jsonProgram[jsonProgramSize];
+    signal output out;
     // top of jsonStack always holds corresponding PC address
     // of the last corresponding bracket
 
     // + 1 to allocate empty memory field
     signal jsonStack[jsonProgramSize + 1][stackDepth];
     signal stackPtr[jsonProgramSize + 1];
-    signal stackPtr[jsonProgramSize + 1];
 
     signal states[jsonProgramSize+1][8];
 
-    states[0][0] === 1;
+    states[0][0] <== 1;
     for (var i = 1; i < 8; i ++) {
-      states[0][i] === 0;
+      states[0][i] <== 0;
     }
     
     // 
@@ -86,8 +85,10 @@ template JsonFull(jsonProgramSize, stackDepth) {
       jsonStack[0][j] <== 0;
     }
 
-    jsonProgram[0] === 123;
-    jsonProgram[jsonProgramSize-1] === 125;
+    // jsonProgram[0] === 123;
+    // jsonProgram[jsonProgramSize-1] === 125;
+
+    signal intermediates[jsonProgramSize][10];
 
     for (var i = 0; i < jsonProgramSize; i++) {
       charTypes[i] = getCharType();
@@ -97,7 +98,14 @@ template JsonFull(jsonProgramSize, stackDepth) {
       // states are } { , [ ] : 0-9 a-Z "
 
       // find new state
-      states[i+1][1] <== states[i][0] * charTypes[i].out[1] + states[i][7] * charTypes[i].out[2] + states[i][3] * charTypes[i].out[1] + states[i][4] * charTypes[i].out[2];
+      // log(i);
+      states[i+1][0] <== 0;
+
+      // intermediates[i][0] <== states[i][0] * charTypes[i].out[1];
+      intermediates[i][1] <== states[i][0] * charTypes[i].out[1];
+      intermediates[i][2] <== intermediates[i][1] + states[i][7] * charTypes[i].out[2];
+      intermediates[i][3] <== intermediates[i][2] + states[i][3] * charTypes[i].out[1];
+      states[i+1][1] <==  intermediates[i][3] + states[i][4] * charTypes[i].out[2];
 
       // Transition to 3
       states[i+1][2] <== states[i][5] * charTypes[i].out[8];
@@ -106,30 +114,56 @@ template JsonFull(jsonProgramSize, stackDepth) {
       states[i+1][3] <== states[i][2] * charTypes[i].out[5];
 
       // Transition to 5
-      states[i+1][4] <== states[i][6] * charTypes[i].out[8] + states[i][4] * charTypes[i].out[0] + states[i][7] * charTypes[i].out[0] + states[i][1] * charTypes[i].out[0];
+      intermediates[i][4] <== states[i][6] * charTypes[i].out[8];
+      intermediates[i][5] <== intermediates[i][4] + states[i][4] * charTypes[i].out[0];
+      intermediates[i][6] <== intermediates[i][5] + states[i][7] * charTypes[i].out[0];
+      states[i+1][4] <==  intermediates[i][6] + states[i][1] * charTypes[i].out[0];
 
       // Transition to 6
-      states[i+1][5] <== states[i][1] * echarTypes[i].out[8] + states[i][5] * (1 - charTypes[i].out[8]);
+      intermediates[i][7] <== states[i][1] * charTypes[i].out[8];
+      states[i+1][5] <== intermediates[i][7] + states[i][5] * (1 - charTypes[i].out[8]);
 
       // Transition to 7
-      states[i+1][6] <== states[i][3] * charTypes[i].out[8] + states[i][6] * (1 - charTypes[i].out[8]);
+      intermediates[i][8] <== states[i][3] * charTypes[i].out[8];
+      states[i+1][6] <== intermediates[i][8] + states[i][6] * (1 - charTypes[i].out[8]);
 
       // Transition to 8
-      states[i+1][7] <== states[i][3] * charTypes[i].out[6] + states[i][7] * charTypes[i].out[6];
+      intermediates[i][9] <== states[i][3] * charTypes[i].out[6];
+      states[i+1][7] <==  intermediates[i][9] + states[i][7] * charTypes[i].out[6];
 
 
-      for (var j = 0; j < stackDepth; j++) {
-        gt[i][j] = LessThan(n);
-        eq[i][j] = IsEqual(n);
+      // for (var j = 0; j < stackDepth; j++) {
+      //   gt[i][j] = LessThan(8);
+      //   eq[i][j] = IsEqual();
 
-        eq[i][j].in[0] <== j;
-        eq[i][j].in[1] <== stackPtr[i];
+      //   eq[i][j].in[0] <== j;
+      //   eq[i][j].in[1] <== stackPtr[i];
 
-        gt[i][j].in[0] <== j;
-        gt[i][j].in[1] <== stackPtr[i];
-        jsonStack[i + 1][j] <== jsonStack[i][j] * gt[i][j].out + eq[i][j].out * ;
-      }
+      //   gt[i][j].in[0] <== j;
+      //   gt[i][j].in[1] <== stackPtr[i];
+      //   jsonStack[i + 1][j] <== jsonStack[i][j] * gt[i][j].out + eq[i][j].out;
+      // }
     }
+
+    // component stackPtrIsEqual = IsEqual();
+    // stackPtrIsEqual.in[0] <== 0;
+    // stackPtrIsEqual.in[1] <== stackPtr[jsonProgramSize];
+
+    for (var i = 0; i < jsonProgramSize + 1; i++) {
+      for (var j = 0; j < 9; j++) {
+        log(states[i][j]);
+      }
+      log("----------");
+    }
+
+    out <== states[jsonProgramSize][4] * 1;
+    // stackPtrIsEqual.out;
 }
 
-component main { public [ bfProgram ] } = JsonFull(164, 5000);
+component main { public [ jsonProgram ] } = JsonFull(8, 4);
+
+/* INPUT = {
+    "jsonProgram": [123, 34, 97, 34, 58, 123, 125, 125]
+} */
+
+// {"a":{}}
