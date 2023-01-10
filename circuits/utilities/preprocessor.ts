@@ -26,8 +26,24 @@ type JsonCircuitInput = {
 
 const ATTR_VAL_MAX_LENGTH = 10; // TODO: idk
 
-// TODO: update offsets to now include quotes for strings
+function toAscii(str: string): Ascii[] {
+	return [...str].map((_, i) => str.charCodeAt(i));
+}
+
+function padAscii(asciiArr: Ascii[], arrayLen: number): Ascii[] {
+	if (asciiArr.length > arrayLen) {
+		console.log(`asciiArr ${asciiArr} is longer than the backing array!!!`);
+		return asciiArr.slice(0, arrayLen);
+	} else {
+		while (asciiArr.length < arrayLen) {
+			asciiArr.push(0);
+		}
+		return asciiArr;
+	}
+}
+
 function preprocessJson(obj: Object, attributes: string[]): JsonCircuitInput | null {
+
 	for (const attr of attributes) {
 		if (!(attr in obj)) {
 			return null;
@@ -35,44 +51,43 @@ function preprocessJson(obj: Object, attributes: string[]): JsonCircuitInput | n
 	}
 
 	const jsonString = JSON.stringify(obj);
-	const jsonAscii: Ascii[] =
-		[...jsonString].map((_, i) => jsonString.charCodeAt(i));  
+	const jsonAscii = toAscii(jsonString);
+
 	const keysOffsets = attributes.map(attr => { 
-		const begin = jsonString.indexOf(attr);
-		const end = begin + attr.length - 1;
+		const begin = jsonString.indexOf(`"${attr}"`);
+		const end = begin + attr.length + 1;
 		return [begin, end];
 	})
 
-	const valuesOffsets = keysOffsets.map(keyOffset => {
-		const begin = keyOffset[1] + 4;
-		const end = jsonString.indexOf("\"", begin) - 1;
-		return [begin, end];
-	})
-
-	const preprocessAttrs = attributes.map(attr => {
-		let res: Ascii[] = [];
-		for (let i = 0; i < ATTR_VAL_MAX_LENGTH; i++) {
-			if (i < attr.length) {
-				res.push(attr.charCodeAt(i));
-			} else {
-				res.push(0);
+	const valueOffsetTuples = attributes.map((attr, i) => {
+		const begin = keysOffsets[i][1] + 2;
+		if (typeof(obj[attr]) === 'string') {
+			const end = jsonString.indexOf("\"", begin+1);
+			return [begin, end, padAscii(toAscii(jsonString.substring(begin, end+1)), ATTR_VAL_MAX_LENGTH)];
+		} else if (typeof(obj[attr]) === 'number') {
+			let end = begin;
+			while (end < jsonString.length) {
+				const currChar = jsonString[end];
+				if (!(currChar >= '0' && currChar <= '9')) {
+					return [begin, end-1, padAscii([parseInt(jsonString.substring(begin, end))], ATTR_VAL_MAX_LENGTH)];
+				}
+				end++;
+			}
+		} else if (Array.isArray(obj[attr])) {
+			let end = begin;
+			while (end < jsonString.length) {
+				const currChar = jsonString[end];
+				if (currChar == "]") {
+					return [begin, end, padAscii(toAscii(jsonString.substring(begin, end+1)), ATTR_VAL_MAX_LENGTH)]
+				}
+				end++;
 			}
 		}
-		return res;
-	});
+	})
 
-	const values = valuesOffsets.map(valueOffset => {
-		const valString = jsonString.substring(valueOffset[0], valueOffset[1]+1);
-		let res: Ascii[] = [];
-		for (let i = 0; i < ATTR_VAL_MAX_LENGTH; i++) {
-			if (i < valString.length) {
-				res.push(valString.charCodeAt(i));
-			} else {
-				res.push(0);
-			}
- 		} 
-		return res;
-	});
+	const values = valueOffsetTuples.map(t => t[2] as number[]);
+	const valuesOffsets = valueOffsetTuples.map(t => [t[0], t[1]] as number[]);
+	const preprocessAttrs = attributes.map(attr => padAscii(toAscii(attr), ATTR_VAL_MAX_LENGTH));
 
 	const result = {
 		jsonAscii,
@@ -83,8 +98,9 @@ function preprocessJson(obj: Object, attributes: string[]): JsonCircuitInput | n
 	};
 
 	return result;
-  
+
 }
 
-let json = { "hello": "world", "good": "bye"};
-console.log(preprocessJson(json, ["good"]));
+let json = {"name":"foobar","value":123,"list":["a",1]} 
+console.log(preprocessJson(json, ["name", "value", "list"]));
+
