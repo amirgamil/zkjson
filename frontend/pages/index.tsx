@@ -15,6 +15,18 @@ export default function Home() {
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
 
+    const [json, setJson] = useState({});
+
+    useEffect(() => {
+        try {
+            setJson(JSON.parse(jsonText));
+            console.log(JSON.parse(jsonText));
+        }
+        catch(err) {
+            console.log("not a json");
+        }
+    }, [jsonText]);
+
     useEffect(() => {
         async function checkIsRegistered() {
             const maybePrivKey = await localforage.getItem("zkattestorPrivKey");

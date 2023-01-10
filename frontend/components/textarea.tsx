@@ -32,6 +32,7 @@ const Container = styled.div`
         background: white;
         opacity: 0.8;
         border-radius: 8px;
+        color: black;
     }
 
     .hidden {
