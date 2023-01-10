@@ -44,8 +44,11 @@ def generate_test(dictionary, indices, N=10):
         attr_arr.append(arr)
     print(f"\t\"attributes\": {attr_arr},")
     value_arr = []
-    for pair in key_vals:
-        arr = string_to_array(pair[1])
+    for i, pair in enumerate(key_vals):
+        if types[i] == 1:
+            arr = [int(pair[1])]
+        else:
+            arr = string_to_array(pair[1])
         arr = arr + [0,] * (N - len(arr))
         value_arr.append(arr)
     print(f"\t\"values\": {value_arr},")
@@ -61,8 +64,6 @@ def generate_test(dictionary, indices, N=10):
 
 d = dict()
 d["name"] = "foobar"
-d["value"] = "123"
-# d["value"] = 123
+d["value"] = 123
 d["list"] = ["a",1]
-# generate_test(d, [0,1,2])
 generate_test(d, [0,1,2])
