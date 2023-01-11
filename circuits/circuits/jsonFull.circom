@@ -1,6 +1,6 @@
 pragma circom 2.0.8;
 
-include "circomlib/comparators.circom";
+include "../node_modules/circomlib/circuits/comparators.circom";
 include "./json.circom";
 include "./inRange.circom";
 
@@ -185,17 +185,11 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, numAttriExtracting, attr
   out <== states[jsonProgramSize][4] * jsonStack[jsonProgramSize][0];
 }
 
-component main { public [ jsonProgram, keysOffset ] } = JsonFull(29, 4, 2, 2, [0, 1], [0, 1]);
+component main { public [ jsonProgram, keysOffset ] } = JsonFull(45, 4, 3, 3, [0, 1, 2], [0, 1, 0]);
 
-// inKey active only for values we're extracting
-// attrTypes contains type of value we're extracting at corresponding indices (doesn't
-// matter elsewhere
-// 1 is number
-// 2 is string
-// inKey is jsonProgramSize + 1
 /* INPUT = {
-	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 125],
-	"values": [[34, 102, 111, 111, 98, 97, 114, 34, 0, 0], [123, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
-	"keysOffset": [[1, 6], [17, 23]],
-	"valuesOffset": [[8, 15], [25, 27]]
+	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 34, 49, 34, 125, 125],
+	"values": [[34, 102, 111, 111, 98, 97, 114, 34, 0, 0], [123, 0, 0, 0, 0, 0, 0, 0, 0, 0], [123, 34, 97, 34, 58, 34, 49, 34, 125, 0]],
+	"keysOffset": [[1, 6], [17, 23], [36, 38]],
+	"valuesOffset": [[8, 15], [25, 27], [40, 42]]
 } */
