@@ -1,4 +1,4 @@
-pragma circom 2.1.0;
+pragma circom 2.0.8;
 
 include "circomlib/comparators.circom";
 include "./inRange.circom";
@@ -61,12 +61,9 @@ template JsonFull(jsonProgramSize, stackDepth) {
     // string of all the json
     signal input jsonProgram[jsonProgramSize];
     signal output out;
-    // top of jsonStack always holds corresponding PC address
-    // of the last corresponding bracket
 
     // + 1 to allocate empty memory field
     signal jsonStack[jsonProgramSize + 1][stackDepth];
-    signal stackPtr[jsonProgramSize + 1];
 
     signal states[jsonProgramSize+1][8];
 
@@ -79,11 +76,12 @@ template JsonFull(jsonProgramSize, stackDepth) {
     component gt[jsonProgramSize][stackDepth];
     component eq[jsonProgramSize][stackDepth];
 
+    component boundaries[jsonProgramSize][2];
+
     component charTypes[jsonProgramSize];
 
-    stackPtr[0] <== 0;
-
-    for (var j = 0; j < stackDepth; j++) {
+    jsonStack[0][0] <== 1;
+    for (var j = 1; j < stackDepth; j++) {
       jsonStack[0][j] <== 0;
     }
 
@@ -91,6 +89,7 @@ template JsonFull(jsonProgramSize, stackDepth) {
     // jsonProgram[jsonProgramSize-1] === 125;
 
     signal intermediates[jsonProgramSize][10];
+    signal more_intermediates[jsonProgramSize][stackDepth][2];
 
     for (var i = 0; i < jsonProgramSize; i++) {
       charTypes[i] = getCharType();
@@ -133,33 +132,35 @@ template JsonFull(jsonProgramSize, stackDepth) {
       intermediates[i][9] <== states[i][3] * charTypes[i].out[6];
       states[i+1][7] <==  intermediates[i][9] + states[i][7] * charTypes[i].out[6];
 
+      jsonStack[i+1][0] <== jsonStack[i][1] * charTypes[i].out[0];
+      more_intermediates[i][stackDepth-1][0] <== jsonStack[i][stackDepth-1] * (1-charTypes[i].out[0]);
+      jsonStack[i+1][stackDepth-1] <== more_intermediates[i][stackDepth-1][0] + jsonStack[i][stackDepth-2] * charTypes[i].out[1];
 
-      // for (var j = 0; j < stackDepth; j++) {
-      //   gt[i][j] = LessThan(8);
-      //   eq[i][j] = IsEqual();
+      boundaries[i][0] = IsEqual();
+      boundaries[i][0].in[0] <== jsonStack[i][0] * charTypes[i].out[0];
+      boundaries[i][0].in[1] <== 0;
 
-      //   eq[i][j].in[0] <== j;
-      //   eq[i][j].in[1] <== stackPtr[i];
+      boundaries[i][0].out === 1;
 
-      //   gt[i][j].in[0] <== j;
-      //   gt[i][j].in[1] <== stackPtr[i];
-      //   jsonStack[i + 1][j] <== jsonStack[i][j] * gt[i][j].out + eq[i][j].out;
-      // }
-    }
+      boundaries[i][1] = IsEqual();
+      boundaries[i][1].in[0] <== jsonStack[i][stackDepth-1] * charTypes[i].out[1];
+      boundaries[i][1].in[1] <== 0;
 
-    // component stackPtrIsEqual = IsEqual();
-    // stackPtrIsEqual.in[0] <== 0;
-    // stackPtrIsEqual.in[1] <== stackPtr[jsonProgramSize];
+      boundaries[i][1].out === 1;
 
-    for (var i = 0; i < jsonProgramSize + 1; i++) {
-      for (var j = 0; j < 9; j++) {
-        log(states[i][j]);
+      for (var j = 1; j < stackDepth-1; j++) {
+          eq[i][j] = IsEqual();
+          eq[i][j].in[0] <== 1;
+          eq[i][j].in[1] <== jsonStack[i][j];
+
+          more_intermediates[i][j][0] <== jsonStack[i][j+1] * charTypes[i].out[0]; // stack++;
+          more_intermediates[i][j][1] <== more_intermediates[i][j][0] + jsonStack[i][j-1] * charTypes[i].out[1]; // stack--;
+          jsonStack[i+1][j] <== more_intermediates[i][j][1] + jsonStack[i][j] * (1 - charTypes[i].out[0] - charTypes[i].out[1]);
       }
-      log("----------");
+
     }
 
-    out <== states[jsonProgramSize][4] * 1;
-    // stackPtrIsEqual.out;
+    out <== states[jsonProgramSize][4] * jsonStack[jsonProgramSize][0];
 }
 
 component main { public [ jsonProgram ] } = JsonFull(8, 4);
