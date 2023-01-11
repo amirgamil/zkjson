@@ -7,9 +7,9 @@ include "./inRange.circom";
 
 template getCharType() {
   signal input in; // ascii value
-  signal output out[9]; // 
+  signal output out[10]; // 
 
-  component equals[6];
+  component equals[7];
   for (var i = 0; i < 6; i ++) {
     equals[i] = IsEqual();
     if (i == 0) {
@@ -33,6 +33,10 @@ template getCharType() {
     equals[i].in[1] <== in;
     out[i] <== equals[i].out;
   }
+  equals[6] = IsEqual();
+  equals[6].in[0] <== 0;
+  equals[6].in[1] <== in;
+  out[9] <== equals[6].out;
 
   component inRange[3];
   for (var i = 0; i < 3; i++) {
@@ -59,9 +63,10 @@ template getCharType() {
 }
 
 // @jsonProgramSize = large constant for max size json
-template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtractingIndices, attriTypes, queryDepth) {
+template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtractingIndices, attriTypes, queryDepth) {
     // string of all the json
     
+    var jsonProgramSize = 50;
     signal input jsonProgram[jsonProgramSize];
     signal input values[numAttriExtracting][10];
     signal input keys[numAttriExtracting][queryDepth][10];
@@ -74,9 +79,10 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
     signal output out;
 
     // + 1 to allocate empty memory field
+    // array of depth where index is 1 corresponding to what depth in the stack we are
     signal jsonStack[jsonProgramSize + 1][stackDepth];
 
-    signal states[jsonProgramSize+1][8];
+    signal states[jsonProgramSize+1][9];
 
     signal queryState[numKeys][jsonProgramSize + 2];
 
@@ -107,13 +113,14 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
     component boundaries[jsonProgramSize][2];
 
     component charTypes[jsonProgramSize];
+    component finishedJsonOr[jsonProgramSize];
 
     jsonStack[0][0] <== 1;
     for (var j = 1; j < stackDepth; j++) {
         jsonStack[0][j] <== 0;
     }
 
-    signal intermediates[jsonProgramSize][10];
+    signal intermediates[jsonProgramSize][11];
     signal more_intermediates[jsonProgramSize][stackDepth][2];
 
     // TODO maybe some offset validation
@@ -158,7 +165,19 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
         intermediates[i][9] <== states[i][3] * charTypes[i].out[6];
         states[i+1][7] <==  intermediates[i][9] + states[i][7] * charTypes[i].out[6];
 
-        jsonStack[i+1][0] <== jsonStack[i][1] * charTypes[i].out[0];
+        finishedJsonOr[i] = OR();
+        if (i > 0) {
+        // 1 if charTypes[i].out[9] or charTypes[i - 1].out9 is 1 0 otherwise
+          finishedJsonOr[i].a <== charTypes[i].out[9];
+          finishedJsonOr[i].b <== charTypes[i - 1].out[9];
+          states[i+1][8] <== finishedJsonOr[i].out;
+        } else {
+          finishedJsonOr[i].a <== 1;
+          finishedJsonOr[i].b <== 1;
+        }
+
+        intermediates[i][10] <== jsonStack[i][0] * charTypes[i].out[9];
+        jsonStack[i+1][0] <== jsonStack[i][1] * charTypes[i].out[0] + intermediates[i][10];
         more_intermediates[i][stackDepth-1][0] <== jsonStack[i][stackDepth-1] * (1-charTypes[i].out[0]);
         jsonStack[i+1][stackDepth-1] <== more_intermediates[i][stackDepth-1][0] + jsonStack[i][stackDepth-2] * charTypes[i].out[1];
 
@@ -226,7 +245,7 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
         // isLessThan same as stackPtr[j+1] != depth - 1
         // concerned there is a correctness issue s
         // - 2 because can only every decrement by 1
-        depthComparison[i][j].in[1] <== stackPtr[j + 1] - 2;
+        depthComparison[i][j].in[1] <== stackPtr[j + 1];
         depthComparison[i][j].out === 0;
       }
     }
@@ -291,15 +310,16 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
       }
     }
 
-    out <== states[jsonProgramSize][4] * jsonStack[jsonProgramSize][0];
+
+    out <== jsonStack[jsonProgramSize][0] * (states[jsonProgramSize][4] + states[jsonProgramSize][8]);
 }
 
-component main { public [ jsonProgram, keysOffset ] } = JsonFull(45, 4, 1, [6, 7, 3], 1, [0], [0], 2);
+component main { public [ jsonProgram, keysOffset ] } = JsonFull(4, 1, [6, 7, 3], 1, [0], [0], 2);
 
 // {"name":"foobar","value":123,"map":{"a":"1"}}
 
 /* INPUT = {
-	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 34, 49, 34, 125, 125],
+	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 34, 49, 34, 125, 0, 0, 0, 0, 0, 0],
 	"keys": [[[34, 109, 97, 112, 34, 0, 0, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0]]],
 	"values": [[34, 49, 34, 0, 0, 0, 0, 0, 0, 0]],
 	"keysOffset": [[[29, 33], [36, 38]]],
