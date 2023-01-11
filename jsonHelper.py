@@ -9,7 +9,7 @@ def var_to_string(var):
     string = string.replace(" ", "")
     return string
 
-def generate_test(dictionary, indices, N=10):
+def generate_test(dictionary, indices, N=10, depth=4):
     # generate a testcase from a dictionary and a sorted list of indices
     # TODO: support new circuit param
     string = var_to_string(dictionary)
@@ -23,9 +23,9 @@ def generate_test(dictionary, indices, N=10):
             types.append(1)
         else:
             types.append(len(var_to_string(v)))
-    print(f"Example({len(string)}, {len(dictionary)}, {[len(k)+2 for k in dictionary.keys()]}, {len(indices)}, {indices}, {types});\n")
+    print(f"JsonFull({len(string)}, {depth}, {len(dictionary)}, {len(indices)}, {indices}, {types});\n")
     print("/* INPUT = {")
-    print(f"\t\"JSON\": {ascii_string},")
+    print(f"\t\"jsonProgram\": {ascii_string},")
     key_vals = []
     index = 0
     for key in dictionary.keys():
@@ -37,12 +37,6 @@ def generate_test(dictionary, indices, N=10):
                 val = var_to_string(val)
             key_vals.append((f"\"{key}\"", val))
         index += 1
-    attr_arr = []
-    for pair in key_vals:
-        arr = string_to_array(pair[0])
-        arr = arr + [0,] * (N - len(arr))
-        attr_arr.append(arr)
-    print(f"\t\"attributes\": {attr_arr},")
     value_arr = []
     for i, pair in enumerate(key_vals):
         if types[i] == 1:
@@ -66,4 +60,4 @@ d = dict()
 d["name"] = "foobar"
 d["value"] = 123
 # d["list"] = ["a",1]
-generate_test(d, [0,1,2])
+generate_test(d, [0,1])
