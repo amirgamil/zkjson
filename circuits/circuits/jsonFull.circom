@@ -1,6 +1,7 @@
 pragma circom 2.1.2;
 
 include "circomlib/comparators.circom";
+include "circomlib/gates.circom";
 include "./json.circom";
 include "./inRange.circom";
 
@@ -58,14 +59,16 @@ template getCharType() {
 }
 
 // @jsonProgramSize = large constant for max size json
-template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtractingIndices, attriTypes) {
+template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtractingIndices, attriTypes, queryDepth) {
     // string of all the json
     
     signal input jsonProgram[jsonProgramSize];
     signal input values[numAttriExtracting][10];
-    signal input keys[numAttriExtracting][10];
+    signal input keys[numAttriExtracting][queryDepth][10];
 
-    signal input keysOffset[numKeys][2];
+    signal input keysOffset[numKeys][queryDepth][2];
+
+    component mAnd[jsonProgramSize][numKeys];
     
     signal input valuesOffset[numKeys][2];
     signal output out;
@@ -75,8 +78,26 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
 
     signal states[jsonProgramSize+1][8];
 
-    // Querydepth will increment everytime we enter new provide key queries
-    signal queryStack[numKeys][jsonProgramSize];
+    signal queryState[numKeys][jsonProgramSize + 2];
+
+    signal temp[numKeys][jsonProgramSize + 1][queryDepth + 1];
+    component isZero[numKeys][jsonProgramSize];
+    for (var i = 0; i < numKeys; i++) {
+      for (var j = 0; j < 2; j++) {
+        queryState[i][j] <== 0;
+      }
+      for (var j = 0; j < jsonProgramSize; j++) {
+        temp[i][j][0] <== 1;
+        for (var k = 0; k < queryDepth; k++) {
+          temp[i][j][k + 1] <== temp[i][j][k] * (keysOffset[i][k][1] - j);
+        }
+
+        isZero[i][j] = IsEqual();
+        isZero[i][j].in[0] <== temp[i][j][queryDepth];
+        isZero[i][j].in[1] <== 0;
+        queryState[i][j + 2] <== queryState[i][j + 1] + isZero[i][j].out;
+      }
+    }
 
     states[0][0] <== 1;
     for (var i = 1; i < 8; i ++) {
@@ -94,7 +115,6 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
 
     signal intermediates[jsonProgramSize][10];
     signal more_intermediates[jsonProgramSize][stackDepth][2];
-
 
     // TODO maybe some offset validation
     for (var i = 0; i < jsonProgramSize; i++) {
@@ -160,18 +180,76 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
             jsonStack[i+1][j] <== more_intermediates[i][j][1] + jsonStack[i][j] * (1 - charTypes[i].out[0] - charTypes[i].out[1]);
         }
     }
-    
-    component stringMatches[numKeys];
+
+    // In StackMachine,
+    // When getting into key, increment queryDepth
+    // ['outer', 'inner']
+    // When getting into another key after this, ensure that stackPtr is not queryDepth - 1
+
+    var accum[jsonProgramSize];
+    signal stackPtr[jsonProgramSize];
+
+
+    signal isDone[numKeys][jsonProgramSize+1];
+    component finished[numKeys][jsonProgramSize];
     for (var i = 0; i < numKeys; i++) {
-        stringMatches[i] = StringKeyCompare(keyLengths[i], jsonProgramSize);
-        for (var attIndex = 0; attIndex < keyLengths[i]; attIndex++) {
-            stringMatches[i].attribute[attIndex] <== keys[i][attIndex];
+      isDone[i][0] <== 0;
+      for (var j = 0; j < jsonProgramSize; j++) {
+        finished[i][j] = IsEqual();
+        finished[i][j].in[0] <== keysOffset[i][queryDepth - 1][1];
+        finished[i][j].in[1] <== j;
+        isDone[i][j+1] <== isDone[i][j] + finished[i][j].out;
+      }
+    }
+    
+    for (var i = 0; i < jsonProgramSize; i++) {
+      accum[i] = 0;
+      for(var j = 0; j < stackDepth; j++) {
+        accum[i] = accum[i] + jsonStack[i][j] * j;
+      }
+      stackPtr[i] <-- accum[i];
+    }
+
+    component depthComparison[numKeys][jsonProgramSize];
+    var BIG_NUMBER = 10000;
+    for (var i = 0; i < numKeys; i++) {
+      for (var j = 0; j < jsonProgramSize - 2; j++) {
+        depthComparison[i][j] = IsEqual();
+        depthComparison[i][j].in[0] <== queryState[i][j] + BIG_NUMBER * isDone[i][j + 1];
+        depthComparison[i][j].in[1] <== stackPtr[j + 1] - 2;
+        depthComparison[i][j].out === 0;
+      }
+    }
+    // '{"circom":{"a": "b"}}'
+    //  queryState: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+    //  stackPtr:   0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2
+
+    // Ensuring each offset's stackpointer correctly
+    component multis[numKeys][queryDepth];
+    for (var i = 0; i < numKeys; i++) {
+      for (var j = 0; j < queryDepth; j++) {
+        multis[i][j] = Multiplexer(1, jsonProgramSize);
+        for (var k = 0; k < jsonProgramSize; k++) {
+          multis[i][j].inp[k][0] <== stackPtr[k];
         }
-        stringMatches[i].keyOffset <== keysOffset[i];
-        stringMatches[i].JSON <== jsonProgram;
+        multis[i][j].sel <== keysOffset[i][j][1];
+        j === multis[i][j].out[0] - 1;
+      }
+    }
+
+    component stringMatches[numKeys][queryDepth];
+    for (var i = 0; i < numKeys; i++) {
+      for (var j = 0; j < queryDepth; j++) {
+        stringMatches[i][j] = StringKeyCompare(keyLengths[i], jsonProgramSize);
+        for (var attIndex = 0; attIndex < keyLengths[i]; attIndex++) {
+            stringMatches[i][j].attribute[attIndex] <== keys[i][j][attIndex];
+        }
+        stringMatches[i][j].keyOffset <== keysOffset[i][j];
+        stringMatches[i][j].JSON <== jsonProgram;
+      }
     }
     for (var i = 0; i < numKeys; i++) {
-        keysOffset[i][1] === valuesOffset[i][0] - 2;
+      keysOffset[i][queryDepth - 1][1] === valuesOffset[i][0] - 2;
     }
 
     // extracting
@@ -179,39 +257,39 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
     component valueMatchesStrings[numAttriExtracting];
     component valueMatchesList[numAttriExtracting];
     for (var i = 0; i < numAttriExtracting; i++) {
-        // If numbers
-        if (attriTypes[attrExtractingIndices[i]] == 0) {
-            valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, 10);
-            for (var attIndex = 0; attIndex < 10; attIndex++) {
-                valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
-            }
-            valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
-            valueMatchesStrings[i].JSON <== jsonProgram;
-        }
-        // If strings
-        else if (attriTypes[attrExtractingIndices[i]] == 1) {
-            valueMatchesNumbers[i] = NumberValueCompare(jsonProgramSize);
-            valueMatchesNumbers[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
-            valueMatchesNumbers[i].JSON <== jsonProgram;
-            // if values is a number it will be the first element of the array
-            valueMatchesNumbers[i].out === values[attrExtractingIndices[i]][0];
-            // If lists
-            // if it's attriTypes is not a 0 or 1, it's a list and the number is the number of the characters
-            // in the list (note a list can never have 0 or 1 characters)
-        }
+      // If numbers
+      if (attriTypes[attrExtractingIndices[i]] == 0) {
+          valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, 10);
+          for (var attIndex = 0; attIndex < 10; attIndex++) {
+              valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
+          }
+          valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+          valueMatchesStrings[i].JSON <== jsonProgram;
+      }
+      // If strings
+      else if (attriTypes[attrExtractingIndices[i]] == 1) {
+          valueMatchesNumbers[i] = NumberValueCompare(jsonProgramSize);
+          valueMatchesNumbers[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+          valueMatchesNumbers[i].JSON <== jsonProgram;
+          // if values is a number it will be the first element of the array
+          valueMatchesNumbers[i].out === values[attrExtractingIndices[i]][0];
+          // If lists
+          // if it's attriTypes is not a 0 or 1, it's a list and the number is the number of the characters
+          // in the list (note a list can never have 0 or 1 characters)
+      }
     }
 
     out <== states[jsonProgramSize][4] * jsonStack[jsonProgramSize][0];
 }
 
-component main { public [ jsonProgram, keysOffset ] } = JsonFull(45, 4, 3, [6, 7, 3], 3, [0, 1, 2], [0, 1, 0]);
+component main { public [ jsonProgram, keysOffset ] } = JsonFull(45, 4, 1, [6, 7, 3], 1, [0], [0], 2);
 
 // {"name":"foobar","value":123,"map":{"a":"1"}}
 
 /* INPUT = {
 	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 34, 49, 34, 125, 125],
-	"keys": [[34, 110, 97, 109, 101, 34, 0, 0, 0, 0], [34, 118, 97, 108, 117, 101, 34, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0]],
-	"values": [[34, 102, 111, 111, 98, 97, 114, 34, 0, 0], [123, 0, 0, 0, 0, 0, 0, 0, 0, 0], [34, 49, 34, 0, 0, 0, 0, 0, 0, 0]],
-	"keysOffset": [[1, 6], [17, 23], [36, 38]],
-	"valuesOffset": [[8, 15], [25, 27], [40, 42]]
+	"keys": [[[34, 109, 97, 112, 34, 0, 0, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0]]],
+	"values": [[34, 49, 34, 0, 0, 0, 0, 0, 0, 0]],
+	"keysOffset": [[[29, 33], [36, 38]]],
+	"valuesOffset": [[40, 42]]
 } */
