@@ -2,6 +2,7 @@ pragma circom 2.1.2;
 
 include "circomlib/comparators.circom";
 include "circomlib/gates.circom";
+include "./poseidonLarge.circom";
 include "./json.circom";
 include "./inRange.circom";
 
@@ -68,12 +69,15 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     
     var jsonProgramSize = 50;
     signal input jsonProgram[jsonProgramSize];
+    signal input hashJsonProgram;
     signal input values[numAttriExtracting][10];
     signal input keys[numAttriExtracting][queryDepth][10];
 
     signal input keysOffset[numKeys][queryDepth][2];
 
     component mAnd[jsonProgramSize][numKeys];
+     // verify json hashes to provided hash
+    component poseidon = PoseidonLarge(jsonProgramSize, jsonProgramSize \ 16 + 1);
     
     signal input valuesOffset[numKeys][2];
     signal output out;
@@ -122,9 +126,10 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
 
     signal intermediates[jsonProgramSize][11];
     signal more_intermediates[jsonProgramSize][stackDepth][2];
-
+    
     // TODO maybe some offset validation
     for (var i = 0; i < jsonProgramSize; i++) {
+        poseidon.in[i] <== jsonProgram[i];
         charTypes[i] = getCharType();
 
         charTypes[i].in <== jsonProgram[i];
@@ -310,6 +315,9 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
       }
     }
 
+   
+    // assert hash is the same as what is passed in (including trailing 0s)
+    poseidon.out === hashJsonProgram;
 
     out <== jsonStack[jsonProgramSize][0] * (states[jsonProgramSize][4] + states[jsonProgramSize][8]);
 }
@@ -319,7 +327,8 @@ component main { public [ jsonProgram, keysOffset ] } = JsonFull(4, 1, [6, 7, 3]
 // {"name":"foobar","value":123,"map":{"a":"1"}}
 
 /* INPUT = {
-	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 34, 49, 34, 125, 0, 0, 0, 0, 0, 0],
+  "hashJsonProgram": "10058416048496861476264053793475873949645935904167570960039020625334949516197",
+	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 34, 49, 34, 125, 125, 0, 0, 0, 0, 0],
 	"keys": [[[34, 109, 97, 112, 34, 0, 0, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0]]],
 	"values": [[34, 49, 34, 0, 0, 0, 0, 0, 0, 0]],
 	"keysOffset": [[[29, 33], [36, 38]]],
