@@ -57,7 +57,7 @@ def generate_test(dictionary, indices, N=10, depth=4):
     print("} */")
 
 d = dict()
-d["name"] = "foobar"
-d["value"] = 123
+d["name"] = "punpm"
+d["balance"] = 100
 # d["list"] = ["a",1]
 generate_test(d, [0,1])

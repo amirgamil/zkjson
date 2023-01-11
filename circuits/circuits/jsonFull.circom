@@ -212,19 +212,30 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
 
     component depthComparison[numKeys][jsonProgramSize];
     var BIG_NUMBER = 10000;
+    // stpr never goes below querydepth
+    // queryState keeps going up (increments on each closing quote of the key)
+    // stackPtr = depth of stack (increments and decrements on opening and closing curly brace)
+    // want stackPtr to not be too small (i.e didn't exit an inner json)
+    // depth comparison is looking at 2 steps ahead 
     for (var i = 0; i < numKeys; i++) {
       for (var j = 0; j < jsonProgramSize - 2; j++) {
         depthComparison[i][j] = IsEqual();
+        // isDone is 0 when before val of inner json you're extracting and 1 after
         depthComparison[i][j].in[0] <== queryState[i][j] + BIG_NUMBER * isDone[i][j + 1];
+        // want to check the thing above is less than the thing below
+        // isLessThan same as stackPtr[j+1] != depth - 1
+        // concerned there is a correctness issue s
+        // - 2 because can only every decrement by 1
         depthComparison[i][j].in[1] <== stackPtr[j + 1] - 2;
         depthComparison[i][j].out === 0;
       }
     }
-    // '{"circom":{"a": "b"}}'
-    //  queryState: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
-    //  stackPtr:   0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2
+    // '{"circom":{"a": "b"}'
+    //  queryState: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, // increments at closing
+    //  stackPtr:   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2
 
     // Ensuring each offset's stackpointer correctly
+    // checks depth = stackptr - 1
     component multis[numKeys][queryDepth];
     for (var i = 0; i < numKeys; i++) {
       for (var j = 0; j < queryDepth; j++) {
@@ -237,6 +248,7 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, keyLengths, numAttriExtr
       }
     }
 
+    // extract nested keys
     component stringMatches[numKeys][queryDepth];
     for (var i = 0; i < numKeys; i++) {
       for (var j = 0; j < queryDepth; j++) {
