@@ -65,5 +65,5 @@ def generate_test(dictionary, indices, N=10):
 d = dict()
 d["name"] = "foobar"
 d["value"] = 123
-d["list"] = ["a",1]
+# d["list"] = ["a",1]
 generate_test(d, [0,1,2])

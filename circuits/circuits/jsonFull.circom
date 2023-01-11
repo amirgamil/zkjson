@@ -1,6 +1,7 @@
 pragma circom 2.1.0;
 
 include "circomlib/comparators.circom";
+include "./json.circom";
 include "./inRange.circom";
 
 template getCharType() {
@@ -57,9 +58,12 @@ template getCharType() {
 }
 
 // @jsonProgramSize = large constant for max size json
-template JsonFull(jsonProgramSize, stackDepth) {
+template JsonFull(jsonProgramSize, stackDepth, numKeys, numAttriExtracting, attrExtractingIndices, attriTypes) {
     // string of all the json
     signal input jsonProgram[jsonProgramSize];
+    signal input values[numAttriExtracting][10];
+    signal input keysOffset[numKeys][2];
+    signal input valuesOffset[numKeys][2];
     signal output out;
     // top of jsonStack always holds corresponding PC address
     // of the last corresponding bracket
@@ -92,6 +96,8 @@ template JsonFull(jsonProgramSize, stackDepth) {
 
     signal intermediates[jsonProgramSize][10];
 
+
+    // TODO maybe some offset validation
     for (var i = 0; i < jsonProgramSize; i++) {
       charTypes[i] = getCharType();
 
@@ -133,7 +139,6 @@ template JsonFull(jsonProgramSize, stackDepth) {
       intermediates[i][9] <== states[i][3] * charTypes[i].out[6];
       states[i+1][7] <==  intermediates[i][9] + states[i][7] * charTypes[i].out[6];
 
-
       // for (var j = 0; j < stackDepth; j++) {
       //   gt[i][j] = LessThan(8);
       //   eq[i][j] = IsEqual();
@@ -145,6 +150,35 @@ template JsonFull(jsonProgramSize, stackDepth) {
       //   gt[i][j].in[1] <== stackPtr[i];
       //   jsonStack[i + 1][j] <== jsonStack[i][j] * gt[i][j].out + eq[i][j].out;
       // }
+    }
+
+
+
+    // extracting
+    component valueMatchesNumbers[numAttriExtracting];
+    component valueMatchesStrings[numAttriExtracting];
+    component valueMatchesList[numAttriExtracting];
+    for (var i = 0; i < numAttriExtracting; i++) {
+        // If numbers
+        if (attriTypes[attrExtractingIndices[i]] == 0) {
+            valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, 10);
+            for (var attIndex = 0; attIndex < 10; attIndex++) {
+                valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
+            }
+            valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+            valueMatchesStrings[i].JSON <== jsonProgram;
+        }
+          // If strings
+        else if (attriTypes[attrExtractingIndices[i]] == 1) {
+            valueMatchesNumbers[i] = NumberValueCompare(jsonProgramSize);
+            valueMatchesNumbers[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+            valueMatchesNumbers[i].JSON <== jsonProgram;
+            // if values is a number it will be the first element of the array
+            valueMatchesNumbers[i].out === values[attrExtractingIndices[i]][0];
+        // If lists
+        // if it's attriTypes is not a 0 or 1, it's a list and the number is the number of the characters
+        // in the list (note a list can never have 0 or 1 characters)
+        }
     }
 
     // component stackPtrIsEqual = IsEqual();
@@ -162,10 +196,17 @@ template JsonFull(jsonProgramSize, stackDepth) {
     // stackPtrIsEqual.out;
 }
 
-component main { public [ jsonProgram ] } = JsonFull(8, 4);
+component main { public [ jsonProgram, keysOffset ] } = JsonFull(29, 4, 2, 2, [0, 1], [0, 1]);
 
+// inKey active only for values we're extracting
+// attrTypes contains type of value we're extracting at corresponding indices (doesn't
+// matter elsewhere
+// 1 is number
+// 2 is string
+// inKey is jsonProgramSize + 1
 /* INPUT = {
-    "jsonProgram": [123, 34, 97, 34, 58, 123, 125, 125]
+  "jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 125],
+	"values": [[34, 102, 111, 111, 98, 97, 114, 34, 0, 0], [123, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+	"keysOffset": [[1, 6], [17, 23]],
+	"valuesOffset": [[8, 15], [25, 27]]
 } */
-
-// {"a":{}}
