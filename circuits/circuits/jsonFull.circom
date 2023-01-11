@@ -156,6 +156,21 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, numAttriExtracting, attr
       boundaries[i][1].in[1] <== 0;
 
 
+    // component stackPtrIsEqual = IsEqual();
+    // stackPtrIsEqual.in[0] <== 0;
+    // stackPtrIsEqual.in[1] <== stackPtr[jsonProgramSize];
+      boundaries[i][1].out === 1;
+
+      for (var j = 1; j < stackDepth-1; j++) {
+          eq[i][j] = IsEqual();
+          eq[i][j].in[0] <== 1;
+          eq[i][j].in[1] <== jsonStack[i][j];
+
+          more_intermediates[i][j][0] <== jsonStack[i][j+1] * charTypes[i].out[0]; // stack++;
+          more_intermediates[i][j][1] <== more_intermediates[i][j][0] + jsonStack[i][j-1] * charTypes[i].out[1]; // stack--;
+          jsonStack[i+1][j] <== more_intermediates[i][j][1] + jsonStack[i][j] * (1 - charTypes[i].out[0] - charTypes[i].out[1]);
+      }
+    }
 
     // extracting
     component valueMatchesNumbers[numAttriExtracting];
@@ -184,22 +199,7 @@ template JsonFull(jsonProgramSize, stackDepth, numKeys, numAttriExtracting, attr
         }
     }
 
-    // component stackPtrIsEqual = IsEqual();
-    // stackPtrIsEqual.in[0] <== 0;
-    // stackPtrIsEqual.in[1] <== stackPtr[jsonProgramSize];
-      boundaries[i][1].out === 1;
 
-      for (var j = 1; j < stackDepth-1; j++) {
-          eq[i][j] = IsEqual();
-          eq[i][j].in[0] <== 1;
-          eq[i][j].in[1] <== jsonStack[i][j];
-
-          more_intermediates[i][j][0] <== jsonStack[i][j+1] * charTypes[i].out[0]; // stack++;
-          more_intermediates[i][j][1] <== more_intermediates[i][j][0] + jsonStack[i][j-1] * charTypes[i].out[1]; // stack--;
-          jsonStack[i+1][j] <== more_intermediates[i][j][1] + jsonStack[i][j] * (1 - charTypes[i].out[0] - charTypes[i].out[1]);
-      }
-
-    }
 
     out <== states[jsonProgramSize][4] * jsonStack[jsonProgramSize][0];
 }
