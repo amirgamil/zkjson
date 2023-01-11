@@ -76,6 +76,8 @@ template JsonFull(jsonProgramSize, stackDepth) {
     component gt[jsonProgramSize][stackDepth];
     component eq[jsonProgramSize][stackDepth];
 
+    component boundaries[jsonProgramSize][2];
+
     component charTypes[jsonProgramSize];
 
     jsonStack[0][0] <== 1;
@@ -130,34 +132,41 @@ template JsonFull(jsonProgramSize, stackDepth) {
       intermediates[i][9] <== states[i][3] * charTypes[i].out[6];
       states[i+1][7] <==  intermediates[i][9] + states[i][7] * charTypes[i].out[6];
 
-      jsonStack[i][0] <== jsonStack[i][1] * charTypes[i].out[1];
-      jsonStack[i][stackDepth-1] <== jsonStack[i][stackDepth-1] * charTypes[i].out[0];
+      jsonStack[i+1][0] <== jsonStack[i][1] * charTypes[i].out[0];
+      more_intermediates[i][stackDepth-1][0] <== jsonStack[i][stackDepth-1] * (1-charTypes[i].out[0]);
+      jsonStack[i+1][stackDepth-1] <== more_intermediates[i][stackDepth-1][0] + jsonStack[i][stackDepth-2] * charTypes[i].out[1];
+
+      boundaries[i][0] = IsEqual();
+      boundaries[i][0].in[0] <== jsonStack[i][0] * charTypes[i].out[0];
+      boundaries[i][0].in[1] <== 0;
+
+      boundaries[i][0].out === 1;
+
+      boundaries[i][1] = IsEqual();
+      boundaries[i][1].in[0] <== jsonStack[i][stackDepth-1] * charTypes[i].out[1];
+      boundaries[i][1].in[1] <== 0;
+
+      boundaries[i][1].out === 1;
+
       for (var j = 1; j < stackDepth-1; j++) {
           eq[i][j] = IsEqual();
           eq[i][j].in[0] <== 1;
           eq[i][j].in[1] <== jsonStack[i][j];
 
-          more_intermediates[i][j][0] <== jsonStack[i][j-1] * charTypes[i].out[0]; // stack++;
-          more_intermediates[i][j][1] <== jsonStack[i][j+1] * charTypes[i].out[1]; // stack--;
-          jsonStack[i+1][j] <== more_intermediates[i][j][0] + more_intermediates[i][j][1]; // stack++ or stack--;
+          more_intermediates[i][j][0] <== jsonStack[i][j+1] * charTypes[i].out[0]; // stack++;
+          more_intermediates[i][j][1] <== more_intermediates[i][j][0] + jsonStack[i][j-1] * charTypes[i].out[1]; // stack--;
+          jsonStack[i+1][j] <== more_intermediates[i][j][1] + jsonStack[i][j] * (1 - charTypes[i].out[0] - charTypes[i].out[1]);
       }
+
     }
 
-    for (var i = 0; i < jsonProgramSize + 1; i++) {
-      for (var j = 0; j < 9; j++) {
-        log(states[i][j]);
-      }
-      log("----------");
-    }
-
-    out <== states[jsonProgramSize][4] * 1;
-    // stackPtrIsEqual.out;
+    out <== states[jsonProgramSize][4] * jsonStack[jsonProgramSize][0];
 }
 
-component main { public [ jsonProgram ] } = JsonFull(7, 4);
+component main { public [ jsonProgram ] } = JsonFull(8, 4);
 
 /* INPUT = {
-    "jsonProgram": [123, 34, 97, 34, 58, 123, 125]
+    "jsonProgram": [123, 34, 97, 34, 58, 123, 125, 125]
 } */
 
 // {"a":{}}
