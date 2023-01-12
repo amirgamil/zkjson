@@ -128,7 +128,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     // array of depth where index is 1 corresponding to what depth in the stack we are
     signal jsonStack[jsonProgramSize + 1][stackDepth][2];
 
-    signal states[jsonProgramSize+1][19];
+    signal states[jsonProgramSize+1][20];
 
     signal queryState[numKeys][jsonProgramSize + 2];
 
@@ -170,7 +170,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         jsonStack[0][j][1] <== 0;
     }
 
-    signal intermediates[jsonProgramSize][26];
+    signal intermediates[jsonProgramSize][28];
     signal preedge[jsonProgramSize][2];
     signal more_intermediates[jsonProgramSize][stackDepth][2][2];
     signal extra_intermediates[jsonProgramSize][2];
@@ -202,25 +202,28 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
 
         // Transition to 5
         intermediates[i][14] <== states[i][6] * charTypes[i].out[8];
-        intermediates[i][15] <== intermediates[i][14] + states[i][4] * charTypes[i].out[0];
-        intermediates[i][16] <== intermediates[i][15] + states[i][7] * charTypes[i].out[0];
+        for(var j = 0; j < 20; j++) {
+          log(states[i][j]);
+        }
+        log(charTypes[i].out[8]);
+        intermediates[i][15] <== intermediates[i][14] + states[i][4] * (charTypes[i].out[0] + charTypes[i].out[4]);
+        intermediates[i][16] <== intermediates[i][15] + states[i][7] * (charTypes[i].out[0] + charTypes[i].out[4]);
         intermediates[i][17] <== intermediates[i][16] + states[i][11] * charTypes[i].out[13];
         intermediates[i][18] <== intermediates[i][17] + states[i][15] * charTypes[i].out[13];
         intermediates[i][19] <== intermediates[i][18] + states[i][18] * isSquareBracketsClosed;
-      
-        preedge[i][0] <== intermediates[i][19] + states[i][1] * charTypes[i].out[0];
+        intermediates[i][24] <== intermediates[i][19] + states[i][16] * isSquareBracketsClosed;
+        preedge[i][0] <== intermediates[i][24] + states[i][1] * charTypes[i].out[0];
 
-        // Only do this if element in the stack[1] corresponds;
-        states[i+1][18] <== preedge[i][0] * jsonStack[i][1][1];
+        // Allow transitions into strings, numbers, booleans, and itself from 16 and 18
 
         // BOOLEANS
 
-        states[i+1][9] <== states[i][3] * charTypes[i].out[10];
+        states[i+1][9] <== (states[i][3] + states[i][16] + states[i][18]) * charTypes[i].out[10];
         states[i+1][10] <== states[i][9] * charTypes[i].out[11];
         states[i+1][11] <== states[i][10] * charTypes[i].out[12];
         // TODO: go from 12 -> finished state 
 
-        states[i+1][12] <== states[i][3] * charTypes[i].out[14];
+        states[i+1][12] <== (states[i][3] + states[i][16] + states[i][18]) * charTypes[i].out[14];
         states[i+1][13] <== states[i][12] * charTypes[i].out[15];
         states[i+1][14] <== states[i][13] * charTypes[i].out[16];
         states[i+1][15] <== states[i][14] * charTypes[i].out[17];
@@ -253,22 +256,20 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         intermediates[i][11] <== intermediates[i][6] + states[i][11] * charTypes[i].out[13];
         intermediates[i][12] <== intermediates[i][11] + states[i][15] * charTypes[i].out[13];
         intermediates[i][13] <== intermediates[i][12] + states[i][18] * isSquareBracketsClosed;
-        preedge[i][1] <== intermediates[i][13] + states[i][1] * charTypes[i].out[0];
+        intermediates[i][25] <== intermediates[i][13] + states[i][16] * isSquareBracketsClosed;
+      
+        preedge[i][1] <== intermediates[i][25] + states[i][1] * charTypes[i].out[0];
         
-        log(preedge[i][1] * jsonStack[i][1][0]);
-        // Only do this if element in the stack[1] corresponds;
-        states[i+1][4] <== preedge[i][1] * jsonStack[i][1][0];
-
         // Transition to 6
         intermediates[i][7] <== states[i][1] * charTypes[i].out[8];
         states[i+1][5] <== intermediates[i][7] + states[i][5] * (1 - charTypes[i].out[8]);
 
         // Transition to 7
-        intermediates[i][8] <== states[i][3] * charTypes[i].out[8];
+        intermediates[i][8] <== (states[i][3] + states[i][16] + states[i][18]) * charTypes[i].out[8];
         states[i+1][6] <== intermediates[i][8] + states[i][6] * (1 - charTypes[i].out[8]);
 
         // Transition to 8
-        intermediates[i][9] <== states[i][3] * charTypes[i].out[6];
+        intermediates[i][9] <== (states[i][3] + states[i][16] + states[i][18]) * charTypes[i].out[6];
         states[i+1][7] <==  intermediates[i][9] + states[i][7] * charTypes[i].out[6];
 
         finishedJsonOr[i] = OR();
@@ -282,26 +283,6 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
           finishedJsonOr[i].b <== 1;
           states[i+1][8] <== 0;
         }
-
-        // Ensures that the stack is never empty
-        log(jsonProgram[i]);
-
-        for (var j = 0; j < stackDepth; j++) {
-          log(jsonStack[i][j][0]);
-        }
-
-        log(i);
-        for (var j = 0; j < 19; j++) {
-          log(states[i + 1][j]);
-        }
-        log("-----------");
-
-        var sum = 0;
-        for (var j = 0; j < 19; j++) {
-          sum += states[i+1][j];
-        }
-
-        1 === sum;
 
         // If '{' push 1
         // If '}' pop
@@ -332,26 +313,31 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
             jsonStack[i+1][j][k] <== more_intermediates[i][j][1][k] + jsonStack[i][j][k] * (1 - charTypes[i].out[0] - charTypes[i].out[1] - charTypes[i].out[3] - charTypes[i].out[4]);
           }
         }
+
+        // Ensures that the stack is never empty
+        var signals;
+        for (var j = 0; j < stackDepth; j++) {
+          signals += jsonStack[i + 1][j][0];
+          // log(jsonStack[i][j]);
+        }
+        boundariesCheck[i] = IsEqual();
+        boundariesCheck[i].in[0] <== 0;
+        boundariesCheck[i].in[1] <== signals;
+
+        states[i+1][4] <== preedge[i][1] * jsonStack[i + 1][0][0];
+        states[i+1][18] <== preedge[i][0] * jsonStack[i + 1][0][1];
+        states[i+1][19] <== states[i][4] * boundariesCheck[i].out;
+
+        log(jsonProgram[i]);
+
+        var sum;
+        for (var j = 0; j < 20; j++) {
+          sum += states[i+1][j];
+        }
+        1 === sum;
     }
-
-    for (var i = 1; i < jsonProgramSize - 1; i++) {
-      // Ensures that the stack is never empty
-      var signals;
-      for (var j = 0; j < stackDepth; j++) {
-        signals += jsonStack[i + 1][j][0];
-        // log(jsonStack[i][j]);
-      }
-      boundariesCheck[i] = IsEqual();
-      boundariesCheck[i].in[0] <== 0;
-      boundariesCheck[i].in[1] <== signals;
-
-      // Do not decrement
-      // if boundariesCheck[i].out === 1 && isZero;
-  
-      // Ensure that isFinished
-      // boundariesCheck[i].out * charTypes[i + 1].out[9] === 0;
-
-      boundariesCheck[i].out === charTypes[i + 1].out[9];
+    for (var i = 1; i < jsonProgramSize; i++) {
+      boundariesCheck[i - 1].out === charTypes[i].out[9];
     }
 
     // In StackMachine,
@@ -474,14 +460,13 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
 
 component main { public [ jsonProgram, keysOffset ] } = JsonFull(4, 1, [6, 7, 3], 1, [0], [2], 2);
 
-// {"name":"foobar","value":123,"map":{"a":"1"}}
 // {"name":"foobar","value":123,"map":{"a":true}}
 
 /* INPUT = {
   "hashJsonProgram": "10058416048496861476264053793475873949645935904167570960039020625334949516197",
-	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125, 125, 0, 0, 0, 0],
+	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 91, 34, 48, 34, 93, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125, 125, 0, 0],
 	"keys": [[[34, 109, 97, 112, 34, 0, 0, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0]]],
 	"values": [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0]],
-	"keysOffset": [[[29, 33], [36, 38]]],
-	"valuesOffset": [[40, 43]]
+	"keysOffset": [[[31, 35], [38, 40]]],
+	"valuesOffset": [[42, 45]]
 } */
