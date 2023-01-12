@@ -77,7 +77,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
 
     component mAnd[jsonProgramSize][numKeys];
      // verify json hashes to provided hash
-    component poseidon = PoseidonLarge(jsonProgramSize, jsonProgramSize \ 16 + 1);
+    component poseidon = PoseidonLarge(jsonProgramSize);
     
     signal input valuesOffset[numKeys][2];
     signal output out;

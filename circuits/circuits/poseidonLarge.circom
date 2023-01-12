@@ -1,26 +1,30 @@
 pragma circom 2.1.2;
 
 include "circomlib/poseidon.circom";
-// include "https://github.com/0xPARC/circom-secp256k1/blob/master/circuits/bigint.circom";
 
-template PoseidonLarge (inputSize, numComponents) {
+template PoseidonLarge (inputSize) {
     signal input in[inputSize];
     signal output out;
 
+    var numComponents = 1;
+    if (inputSize > 16) {
+        numComponents = 2 + ((inputSize - 17) \ 15);
+    }
+
     component poseidons[numComponents];
     var counter = 0;
-    var innerLoop = 16;
-    if (inputSize < 16) {
-        innerLoop = inputSize;
-    }
+    var innerLoop;
     for (var i = 0; i < numComponents; i++) {
         if (i == numComponents - 1) {
-            poseidons[i] = Poseidon(inputSize - counter + 1);
-            innerLoop = inputSize - counter + 1;
+            if (i == 0) {
+                innerLoop = inputSize;
+            } else {
+                innerLoop = inputSize - counter + 1;
+            }
         } else {
-            poseidons[i] = Poseidon(16);
+            innerLoop = 16;
         }
-        
+        poseidons[i] = Poseidon(innerLoop);
         if (i != 0) {
             poseidons[i].inputs[0] <== poseidons[i - 1].out;
             for (var j = 1; j < innerLoop; j++) {
