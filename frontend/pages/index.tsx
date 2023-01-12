@@ -12,7 +12,6 @@ import { JsonViewer } from "@textea/json-viewer";
 import { preprocessJson } from "../helpers/preprocessor";
 import { format } from "path";
 
-
 interface JSON_EL {
     value: string;
     ticked: boolean;
@@ -22,7 +21,6 @@ interface JSON_STORE {
     [key: string]: JSON_EL;
 }
 
-
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -31,23 +29,25 @@ export default function Home() {
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
 
     const setKeyInDataStore = (key: string, state: boolean) => {
-        let newJson = {...JsonDataStore};
-        if (newJson[key]) newJson[key].ticked = state;
+        let newJson = { ...JsonDataStore };
+        //TODO: handle nesting
+        if (typeof key === "string" && newJson[key]) {
+            newJson[key].ticked = state;
+        }
         setJsonDataStore(newJson);
-    }
-    
+    };
+
     const handleCheckmarkCheck = (event, key: string) => {
         setKeyInDataStore(key, event.target.checked);
     };
-    
+
     const [json, setJson] = useState({});
 
     useEffect(() => {
         try {
             setJson(JSON.parse(jsonText));
             console.log(JSON.parse(jsonText));
-        }
-        catch(err) {
+        } catch (err) {
             console.log("not a json");
         }
     }, [jsonText]);
@@ -81,12 +81,18 @@ export default function Home() {
         Object.keys(parsedJson).forEach((key) => {
             newJsonDataStore[key] = {
                 value: parsedJson[key],
-                ticked: false
-            }
-        })
+                ticked: false,
+            };
+        });
         setJsonDataStore(newJsonDataStore);
 
         const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
+    };
+
+    const recursivelyResolveObject = (obj: Record<string, any>) => {
+        if (typeof obj !== "object") {
+            return obj;
+        }
     };
 
     console.log(JsonDataStore);
@@ -127,33 +133,35 @@ export default function Home() {
                             <JsonViewer value={formattedJSON} />
                         </>
                     ) : null}
-                    <br/>
+                    <br />
 
                     <p className="mb-2">Select JSON elements to reveal in ZK-proof</p>
 
                     <ul>
                         <>
-                            {
-                                Object.keys(JsonDataStore).map(
-                                    (key) => {
-                                        return <>
-                                            <p key={key}>
-                                                <label className="inline-flex items-center ml-6">
-                                                    <input 
-                                                        type="checkbox"
-                                                        className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                                                        onChange={ (e) => handleCheckmarkCheck(e, key) }
-                                                        checked={ JsonDataStore[key] ? JsonDataStore[key].ticked: false}
-                                                    />
-                                                </label>
-                                                <strong className="mb-4">{key}:</strong> {JsonDataStore[key]['value']}
-                                            </p>
-                                        </>
-                                    }
-                                )
-                            }
+                            {Object.keys(JsonDataStore).map((key, index) => {
+                                return (
+                                    <>
+                                        <div key={index}>
+                                            <label className="inline-flex items-center ml-6">
+                                                <input
+                                                    type="checkbox"
+                                                    className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                                                    onChange={(e) => handleCheckmarkCheck(e, key)}
+                                                    checked={JsonDataStore[key] ? JsonDataStore[key].ticked : false}
+                                                />
+                                            </label>
+                                            <strong className="mb-4">{key}:</strong>{" "}
+                                            {typeof JsonDataStore[key]["value"] !== "object"
+                                                ? JsonDataStore[key]["value"]
+                                                : JSON.stringify(JsonDataStore[key]["value"])}
+                                        </div>
+                                    </>
+                                );
+                            })}
                         </>
                     </ul>
+                    <div className="py-2"></div>
                     {/* This should build the circuit, and 'attest' to certain values of the JSON */}
                     <Button backgroundColor="black" color="white" onClickHandler={signJSON}>
                         {isLoading ? "loading..." : "Build Circuit & Generate Proof"}
@@ -163,6 +171,3 @@ export default function Home() {
         </>
     );
 }
-
-
-
