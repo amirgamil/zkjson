@@ -128,7 +128,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     // array of depth where index is 1 corresponding to what depth in the stack we are
     signal jsonStack[jsonProgramSize + 1][stackDepth];
 
-    signal states[jsonProgramSize+1][17];
+    signal states[jsonProgramSize+1][16];
 
     signal queryState[numKeys][jsonProgramSize + 2];
 
@@ -152,7 +152,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     }
 
     states[0][0] <== 1;
-    for (var i = 1; i < 17; i ++) {
+    for (var i = 1; i < 16; i ++) {
         states[0][i] <== 0;
     }
 
@@ -246,15 +246,12 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
           states[i+1][8] <== 0;
         }
 
-        1 === states[i+1][0] + states[i+1][1] + states[i+1][2] + states[i+1][3] + states[i+1][4] + states[i+1][5] + states[i+1][6] + states[i+1][7] + states[i+1][8] + states[i+1][9] + states[i+1][10] + states[i+1][11] + states[i+1][12] + states[i+1][13] + states[i+1][14] + states[i+1][15];
-
-        if (i >= 40) {
-          log("-----");
-          log(i);
-          for (var j = 0; j < 16; j ++) {
-            log(states[i+1][j]);
-          }
+        var sum = 0;
+        for (var j = 0; j < 16; j++) {
+          sum += states[i+1][j];
         }
+
+        1 === sum;
 
         intermediates[i][10] <== jsonStack[i][0] * charTypes[i].out[9];
         jsonStack[i+1][0] <== jsonStack[i][1] * charTypes[i].out[0] + intermediates[i][10];
@@ -394,9 +391,6 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
    
     // assert hash is the same as what is passed in (including trailing 0s)
     // poseidon.out === hashJsonProgram;
-    log("DONE");
-    log(states[jsonProgramSize][4]);
-    log(states[jsonProgramSize][8]);
 
     out <== jsonStack[jsonProgramSize][0] * (states[jsonProgramSize][4] + states[jsonProgramSize][8]);
 }
