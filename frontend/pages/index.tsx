@@ -53,8 +53,28 @@ export default function Home() {
     }, [jsonText]);
 
     const generateProof = async () => {
+        const hardCoded = {
+            hashJsonProgram:
+                BigInt(10058416048496861476264053793475873949645935904167570960039020625334949516197).toString(),
+            jsonProgram: [
+                123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101,
+                34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125, 125, 0,
+                0, 0, 0,
+            ].map((el) => el.toString()),
+            keys: [
+                [
+                    [34, 109, 97, 112, 34, 0, 0, 0, 0, 0].map((el) => el.toString()),
+                    [34, 97, 34, 0, 0, 0, 0, 0, 0, 0].map((el) => el.toString()),
+                ],
+            ],
+            values: [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0].map((el) => el.toString())],
+            keysOffset: [[[29, 33].map((el) => el.toString()), [36, 38].map((el) => el.toString())]],
+            valuesOffset: [[40, 43].map((el) => el.toString())],
+        };
+        console.log(hardCoded);
+        hardCoded.jsonProgram.map(BigInt);
         const worker = new Worker("./worker.js");
-        worker.postMessage([{}, "./jsonFull_final.zkey"]);
+        worker.postMessage([hardCoded, "./jsonFull_final.zkey"]);
         worker.onmessage = async function (e) {
             const { proof, publicSignals } = e.data;
             console.log("PROOF SUCCESSFULLY GENERATED: ", proof);
