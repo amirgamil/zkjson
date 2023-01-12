@@ -52,6 +52,15 @@ export default function Home() {
         }
     }, [jsonText]);
 
+    const generateProof = async () => {
+        const worker = new Worker("./worker.js");
+        worker.postMessage([{}, "./jsonFull_final.zkey"]);
+        worker.onmessage = async function (e) {
+            const { proof, publicSignals } = e.data;
+            console.log("PROOF SUCCESSFULLY GENERATED: ", proof);
+        };
+    };
+
     useEffect(() => {
         async function checkIsRegistered() {
             const maybePrivKey = await localforage.getItem("zkattestorPrivKey");
@@ -163,7 +172,7 @@ export default function Home() {
                     </ul>
                     <div className="py-2"></div>
                     {/* This should build the circuit, and 'attest' to certain values of the JSON */}
-                    <Button backgroundColor="black" color="white" onClickHandler={signJSON}>
+                    <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
                         {isLoading ? "loading..." : "Build Circuit & Generate Proof"}
                     </Button>
                 </div>

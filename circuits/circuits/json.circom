@@ -1,7 +1,7 @@
-pragma circom 2.1.2;
+pragma circom 2.1.0;
 
-include "circomlib/comparators.circom";
-include "circomlib/multiplexer.circom";
+include "../node_modules/circomlib/circuits/comparators.circom";
+include "../node_modules/circomlib/circuits/multiplexer.circom";
 
 template NumberValueCompare(jsonLength) {
     signal input keyOffset[2];
