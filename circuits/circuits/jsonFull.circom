@@ -8,7 +8,7 @@ include "./inRange.circom";
 
 template getCharType() {
   signal input in; // ascii value
-  signal output out[10]; // 
+  signal output out[18]; // 
 
   component equals[7];
   for (var i = 0; i < 6; i ++) {
@@ -61,6 +61,48 @@ template getCharType() {
   equalsQuote.in[1] <== 34;
 
   out[8] <== equalsQuote.out;
+
+  // out[10-17] is t, r, u, e, f, a, l, s
+
+  // 116, 114, 117, 101, 102, 97, 108, 115
+
+  component equals2[8];
+  for (var i = 0; i < 8; i ++) {
+    equals2[i] = IsEqual();
+    equals2[i].in[0] <== in;
+    if (i == 0) {
+      equals2[i].in[1] <== 116;
+      out[10] <== equals2[i].out;
+    }
+    if (i == 1) {
+      equals2[i].in[1] <== 114;
+      out[11] <== equals2[i].out;
+    }
+    if (i == 2) {
+      equals2[i].in[1] <== 117;
+      out[12] <== equals2[i].out;
+    }
+    if (i == 3) {
+      equals2[i].in[1] <== 101;
+      out[13] <== equals2[i].out;
+    }
+    if (i == 4) {
+      equals2[i].in[1] <== 102;
+      out[14] <== equals2[i].out;
+    }
+    if (i == 5) {
+      equals2[i].in[1] <== 97;
+      out[15] <== equals2[i].out;
+    }
+    if (i == 6) {
+      equals2[i].in[1] <== 108;
+      out[16] <== equals2[i].out;
+    }
+    if (i == 7) {
+      equals2[i].in[1] <== 115;
+      out[17] <== equals2[i].out;
+    }
+  }
 }
 
 // @jsonProgramSize = large constant for max size json
@@ -77,7 +119,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
 
     component mAnd[jsonProgramSize][numKeys];
      // verify json hashes to provided hash
-    component poseidon = PoseidonLarge(jsonProgramSize);
+    // component poseidon = PoseidonLarge(jsonProgramSize);
     
     signal input valuesOffset[numKeys][2];
     signal output out;
@@ -86,7 +128,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     // array of depth where index is 1 corresponding to what depth in the stack we are
     signal jsonStack[jsonProgramSize + 1][stackDepth];
 
-    signal states[jsonProgramSize+1][9];
+    signal states[jsonProgramSize+1][17];
 
     signal queryState[numKeys][jsonProgramSize + 2];
 
@@ -110,7 +152,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     }
 
     states[0][0] <== 1;
-    for (var i = 1; i < 8; i ++) {
+    for (var i = 1; i < 17; i ++) {
         states[0][i] <== 0;
     }
 
@@ -124,15 +166,35 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         jsonStack[0][j] <== 0;
     }
 
-    signal intermediates[jsonProgramSize][11];
+    signal intermediates[jsonProgramSize][13];
     signal more_intermediates[jsonProgramSize][stackDepth][2];
     
     // TODO maybe some offset validation
+    // state 10: after processing t
+    // state 11: --- tr
+    // state 12: --- tru
+    // state 13: f
+    // state 14: fa
+    // state 15: fal
+    // state 16: fals
     for (var i = 0; i < jsonProgramSize; i++) {
-        poseidon.in[i] <== jsonProgram[i];
+        // poseidon.in[i] <== jsonProgram[i];
         charTypes[i] = getCharType();
 
         charTypes[i].in <== jsonProgram[i];
+
+        states[i+1][10] <== states[i][3] * charTypes[i].out[10];
+        states[i+1][11] <== states[i][10] * charTypes[i].out[11];
+        states[i+1][12] <== states[i][11] * charTypes[i].out[12];
+        // TODO: go from 12 -> finished state 
+
+        states[i+1][13] <== states[i][3] * charTypes[i].out[14];
+        states[i+1][14] <== states[i][13] * charTypes[i].out[14];
+        states[i+1][15] <== states[i][14] * charTypes[i].out[15];
+        states[i+1][16] <== states[i][15] * charTypes[i].out[16];
+        // TODO: go from 16 -> finished state
+
+
         // charTypes[i].out is 1-hot encoding of type of character
         // states are } { , [ ] : 0-9 a-Z "
 
@@ -156,7 +218,9 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         intermediates[i][4] <== states[i][6] * charTypes[i].out[8];
         intermediates[i][5] <== intermediates[i][4] + states[i][4] * charTypes[i].out[0];
         intermediates[i][6] <== intermediates[i][5] + states[i][7] * charTypes[i].out[0];
-        states[i+1][4] <==  intermediates[i][6] + states[i][1] * charTypes[i].out[0];
+        intermediates[i][11] <== intermediates[i][6] + states[i][12] * charTypes[i].out[13];
+        intermediates[i][12] <== intermediates[i][11] + states[i][16] * charTypes[i].out[13];
+        states[i+1][4] <==  intermediates[i][12] + states[i][1] * charTypes[i].out[0];
 
         // Transition to 6
         intermediates[i][7] <== states[i][1] * charTypes[i].out[8];
@@ -179,6 +243,17 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         } else {
           finishedJsonOr[i].a <== 1;
           finishedJsonOr[i].b <== 1;
+          states[i+1][8] <== 0;
+        }
+
+        1 === states[i+1][0] + states[i+1][1] + states[i+1][2] + states[i+1][3] + states[i+1][4] + states[i+1][5] + states[i+1][6] + states[i+1][7] + states[i+1][8] + states[i+1][10] + states[i+1][11] + states[i+1][12] + states[i+1][13] + states[i+1][14] + states[i+1][15] + states[i+1][16];
+
+        if (i >= 40) {
+          log("-----");
+          log(i);
+          for (var j = 0; j < 16; j ++) {
+            log(states[i+1][j]);
+          }
         }
 
         intermediates[i][10] <== jsonStack[i][0] * charTypes[i].out[9];
@@ -313,24 +388,29 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
           // if it's attriTypes is not a 0 or 1, it's a list and the number is the number of the characters
           // in the list (note a list can never have 0 or 1 characters)
       }
+      // TODO: check for 2s
     }
 
    
     // assert hash is the same as what is passed in (including trailing 0s)
-    poseidon.out === hashJsonProgram;
+    // poseidon.out === hashJsonProgram;
+    log("DONE");
+    log(states[jsonProgramSize][4]);
+    log(states[jsonProgramSize][8]);
 
     out <== jsonStack[jsonProgramSize][0] * (states[jsonProgramSize][4] + states[jsonProgramSize][8]);
 }
 
-component main { public [ jsonProgram, keysOffset ] } = JsonFull(4, 1, [6, 7, 3], 1, [0], [0], 2);
+component main { public [ jsonProgram, keysOffset ] } = JsonFull(4, 1, [6, 7, 3], 1, [0], [2], 2);
 
 // {"name":"foobar","value":123,"map":{"a":"1"}}
+// {"name":"foobar","value":123,"map":{"a":true}}
 
 /* INPUT = {
   "hashJsonProgram": "10058416048496861476264053793475873949645935904167570960039020625334949516197",
-	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 34, 49, 34, 125, 125, 0, 0, 0, 0, 0],
+	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125, 125, 0, 0, 0, 0],
 	"keys": [[[34, 109, 97, 112, 34, 0, 0, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0]]],
-	"values": [[34, 49, 34, 0, 0, 0, 0, 0, 0, 0]],
+	"values": [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0]],
 	"keysOffset": [[[29, 33], [36, 38]]],
-	"valuesOffset": [[40, 42]]
+	"valuesOffset": [[40, 43]]
 } */
