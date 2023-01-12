@@ -202,10 +202,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
 
         // Transition to 5
         intermediates[i][14] <== states[i][6] * charTypes[i].out[8];
-        for(var j = 0; j < 20; j++) {
-          log(states[i][j]);
-        }
-        log(charTypes[i].out[8]);
+
         intermediates[i][15] <== intermediates[i][14] + states[i][4] * (charTypes[i].out[0] + charTypes[i].out[4]);
         intermediates[i][16] <== intermediates[i][15] + states[i][7] * (charTypes[i].out[0] + charTypes[i].out[4]);
         intermediates[i][17] <== intermediates[i][16] + states[i][11] * charTypes[i].out[13];
@@ -234,7 +231,6 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         // states are } { , [ ] : 0-9 a-Z "
 
         // find new state
-        // log(i);
         states[i+1][0] <== 0;
 
         // intermediates[i][0] <== states[i][0] * charTypes[i].out[1];
@@ -318,7 +314,6 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         var signals;
         for (var j = 0; j < stackDepth; j++) {
           signals += jsonStack[i + 1][j][0];
-          // log(jsonStack[i][j]);
         }
         boundariesCheck[i] = IsEqual();
         boundariesCheck[i].in[0] <== 0;
@@ -327,8 +322,6 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         states[i+1][4] <== preedge[i][1] * jsonStack[i + 1][0][0];
         states[i+1][18] <== preedge[i][0] * jsonStack[i + 1][0][1];
         states[i+1][19] <== states[i][4] * boundariesCheck[i].out;
-
-        log(jsonProgram[i]);
 
         var sum;
         for (var j = 0; j < 20; j++) {
@@ -409,8 +402,8 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     component stringMatches[numKeys][queryDepth];
     for (var i = 0; i < numKeys; i++) {
       for (var j = 0; j < queryDepth; j++) {
-        stringMatches[i][j] = StringKeyCompare(keyLengths[i], jsonProgramSize);
-        for (var attIndex = 0; attIndex < keyLengths[i]; attIndex++) {
+        stringMatches[i][j] = StringKeyCompare(keyLengths[i][j], jsonProgramSize);
+        for (var attIndex = 0; attIndex < keyLengths[i][j]; attIndex++) {
             stringMatches[i][j].attribute[attIndex] <== keys[i][j][attIndex];
         }
         stringMatches[i][j].keyOffset <== keysOffset[i][j];
