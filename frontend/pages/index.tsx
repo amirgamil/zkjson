@@ -9,10 +9,11 @@ import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
-import { isJSON } from "../utilities/json";
+import { isJSON, JSONStringifyCustom, padJSONString } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
+import { generateEddsaSignature } from "../utilities/crypto";
 
 interface JSON_EL {
     value: string;
@@ -42,8 +43,6 @@ export default function Home() {
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
-
-    const lastJsonText = useRef<string>();
 
     const setKeyInDataStore = (key: string, state: boolean) => {
         let newJson = { ...JsonDataStore };
@@ -124,7 +123,7 @@ export default function Home() {
             return;
         }
         const privateKey = await localforage.getItem("zkattestorPrivKey");
-        const newFormattedJSON = JSON.stringify(JSON.parse(jsonText));
+        const newFormattedJSON = padJSONString(JSON.stringify(JSON.parse(jsonText)), 50);
         setFormattedJSON(newFormattedJSON);
 
         // Populate JSON_STORE with data from JSON.parse(jsonText);
@@ -136,10 +135,13 @@ export default function Home() {
                 ticked: false,
             };
         });
-        setJsonDataStore(newJsonDataStore);
-        console.log("check here: ", jsonText);
-        lastJsonText.current = jsonText;
-        const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
+        console.log("formatted: ", newFormattedJSON.length, jsonText.length);
+        // const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
+        const signature = await generateEddsaSignature(
+            privateKey as Uint8Array,
+            ethers.utils.toUtf8Bytes(newFormattedJSON)
+        );
+        console.log(JSONStringifyCustom(signature));
         setSignature(signature);
     };
 
