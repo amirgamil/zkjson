@@ -1,9 +1,11 @@
 type JsonCircuitConfig = {
-	jsonLength: number,
+	stackDepth: number,
 	numKeys: number,
-	attrLengths: number[], 
+	keyLengths: number[],
 	numAttriExtracting: number,
 	attrExtractingIndices: number[],
+	attriTypes: number[],
+	queryDepth: number,
 };
 
 type Ascii = number;
@@ -127,40 +129,7 @@ function preprocessJson(obj: Object, attrQueries: AttributeQuery[]): JsonCircuit
 			}
 		}
 	);
-
-	// const valuesOffsets: Ascii[][] = attrQueries.map((attrQ, i) => { 
-	// 	// end index of the key + :" (2 chars)
-	// 	const begin = keysOffsets[i][queryDepth-1][1] + 2;
-	// 	const value = getValue(obj, attrQ);
-
-	// 	if (typeof(value) === 'string') {
-	// 		const end = jsonString.indexOf("\"", begin+1);
-	// 		return [begin, end, padAscii(toAscii(jsonString.substring(begin, end+1)), ATTR_VAL_MAX_LENGTH)];
-	// 	} else if (typeof(value) === 'number') {
-	// 		let end = begin;
-	// 		while (end < jsonString.length) {
-	// 			const currChar = jsonString[end];
-	// 			if (!(currChar >= '0' && currChar <= '9')) {
-	// 				return [begin, end-1];
-	// 			}
-	// 			end++;
-	// 		}
-	// 	} else if (Array.isArray(value)) {
-	// 		let end = begin;
-	// 		while (end < jsonString.length) {
-	// 			const currChar = jsonString[end];
-	// 			if (currChar == "]") {
-	// 				return [begin, end]
-	// 			}
-	// 			end++;
-	// 		}
-	// 	}
-	// });  
-
-	// const values = valueOffsetTuples.map(t => t[2] as number[]);
-	// const valuesOffsets = valueOffsetTuples.map(t => [t[0], t[1]] as number[]);
-	// const preprocessAttrs = attributes.map(attr => padAscii(toAscii(attr), ATTR_VAL_MAX_LENGTH));
-
+ 
 	const result = {
 		jsonAscii,
 		attributes,
@@ -171,6 +140,35 @@ function preprocessJson(obj: Object, attrQueries: AttributeQuery[]): JsonCircuit
 
 	return result;
 
+}
+
+function generateJsonCircuitConfig(
+	obj: Object,
+	attrQueries: AttributeQuery[]
+): JsonCircuitConfig {
+	const queryDepth = attrQueries[0].length;
+	const attriTypes = attrQueries.map(attrQ => { 
+		const value = getValue(obj, attrQ);
+		if (typeof(value) == "number") {
+			return 0;
+		} else if (typeof(value) === "string") {
+			return 1;
+		} else {
+			console.error(
+				`Unsupported type ${typeof(value)} from ${attrQ}, value ${value}`);
+			return -1;
+		}
+	});
+
+	return { 
+		stackDepth: 4, // TODO: hardcoded? 
+		numKeys: attrQueries.length,
+		keyLengths: [], // TODO: idt this is still needed?
+		numAttriExtracting: queryDepth,
+		attrExtractingIndices: [], // TODO: also dt it's needed anymore
+		attriTypes,
+		queryDepth,
+	}
 }
 
 // let json = {"name":"foobar","value":123,"list":["a",1]} 
