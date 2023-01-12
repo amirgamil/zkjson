@@ -183,15 +183,14 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
 
         charTypes[i].in <== jsonProgram[i];
 
-        states[i+1][10] <== states[i][3] * charTypes[i].out[10];
-        states[i+1][11] <== states[i][10] * charTypes[i].out[11];
-        states[i+1][12] <== states[i][11] * charTypes[i].out[12];
+        states[i+1][9] <== states[i][3] * charTypes[i].out[10];
+        states[i+1][10] <== states[i][9] * charTypes[i].out[11];
+        states[i+1][11] <== states[i][10] * charTypes[i].out[12];
         // TODO: go from 12 -> finished state 
 
         states[i+1][13] <== states[i][3] * charTypes[i].out[14];
         states[i+1][14] <== states[i][13] * charTypes[i].out[14];
         states[i+1][15] <== states[i][14] * charTypes[i].out[15];
-        states[i+1][16] <== states[i][15] * charTypes[i].out[16];
         // TODO: go from 16 -> finished state
 
 
@@ -218,9 +217,9 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
         intermediates[i][4] <== states[i][6] * charTypes[i].out[8];
         intermediates[i][5] <== intermediates[i][4] + states[i][4] * charTypes[i].out[0];
         intermediates[i][6] <== intermediates[i][5] + states[i][7] * charTypes[i].out[0];
-        intermediates[i][11] <== intermediates[i][6] + states[i][12] * charTypes[i].out[13];
-        intermediates[i][12] <== intermediates[i][11] + states[i][16] * charTypes[i].out[13];
-        states[i+1][4] <==  intermediates[i][12] + states[i][1] * charTypes[i].out[0];
+        intermediates[i][11] <== intermediates[i][6] + states[i][11] * charTypes[i].out[12];
+        intermediates[i][12] <== intermediates[i][11] + states[i][15] * charTypes[i].out[12];
+        states[i+1][4] <==  intermediates[i][11] + states[i][1] * charTypes[i].out[0];
 
         // Transition to 6
         intermediates[i][7] <== states[i][1] * charTypes[i].out[8];
@@ -246,7 +245,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
           states[i+1][8] <== 0;
         }
 
-        1 === states[i+1][0] + states[i+1][1] + states[i+1][2] + states[i+1][3] + states[i+1][4] + states[i+1][5] + states[i+1][6] + states[i+1][7] + states[i+1][8] + states[i+1][10] + states[i+1][11] + states[i+1][12] + states[i+1][13] + states[i+1][14] + states[i+1][15] + states[i+1][16];
+        1 === states[i+1][0] + states[i+1][1] + states[i+1][2] + states[i+1][3] + states[i+1][4] + states[i+1][5] + states[i+1][6] + states[i+1][7] + states[i+1][8] + states[i+1][9] + states[i+1][10] + states[i+1][11] + states[i+1][12] + states[i+1][13] + states[i+1][14] + states[i+1][15];
 
         if (i >= 40) {
           log("-----");
