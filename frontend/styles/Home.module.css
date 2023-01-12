@@ -71,15 +71,7 @@
     max-width: 30ch;
 }
 
-.center {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    padding: 4rem 0;
-}
-
-.center::before {
+.coolBackground::before {
     background: var(--secondary-glow);
     border-radius: 50%;
     width: 480px;
@@ -87,15 +79,15 @@
     margin-left: -400px;
 }
 
-.center::after {
+.coolBackground::after {
     background: var(--primary-glow);
     width: 240px;
     height: 180px;
     z-index: -1;
 }
 
-.center::before,
-.center::after {
+.coolBackground::before,
+.coolBackground::after {
     content: "";
     left: 50%;
     position: absolute;
@@ -189,11 +181,11 @@
         margin-bottom: 0.5rem;
     }
 
-    .center {
+    .coolBackground {
         padding: 8rem 0 6rem;
     }
 
-    .center::before {
+    .coolBackground::before {
         transform: none;
         height: 300px;
     }

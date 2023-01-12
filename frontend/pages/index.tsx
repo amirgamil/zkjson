@@ -1,16 +1,18 @@
 import Head from "next/head";
-import { Inter } from "@next/font/google";
 import styles from "../styles/Home.module.css";
 import { Textarea } from "../components/textarea";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../components/button";
 import localforage from "localforage";
 import * as ed from "@noble/ed25519";
 import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
-import { preprocessJson } from "../helpers/preprocessor";
-import { format } from "path";
+import toast, { Toaster } from "react-hot-toast";
+import { isJSON } from "../utilities/json";
+import styled from "styled-components";
+import axios from "axios";
+import { VerifyPayload } from "../utilities/types";
 
 interface JSON_EL {
     value: string;
@@ -21,12 +23,27 @@ interface JSON_STORE {
     [key: string]: JSON_EL;
 }
 
+interface ProofArtifacts {
+    publicSignals: string[];
+    proof: Object;
+}
+
+const Container = styled.main`
+    .proofLink {
+        text-decoration: underline !important;
+    }
+`;
+
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
+    const [signature, setSignature] = useState<Object | undefined>(undefined);
+    const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
+
+    const lastJsonText = useRef<string>();
 
     const setKeyInDataStore = (key: string, state: boolean) => {
         let newJson = { ...JsonDataStore };
@@ -41,44 +58,46 @@ export default function Home() {
         setKeyInDataStore(key, event.target.checked);
     };
 
-    const [json, setJson] = useState({});
-
-    useEffect(() => {
-        try {
-            setJson(JSON.parse(jsonText));
-            console.log(JSON.parse(jsonText));
-        } catch (err) {
-            console.log("not a json");
-        }
-    }, [jsonText]);
-
     const generateProof = async () => {
-        const hardCoded = {
-            hashJsonProgram:
-                BigInt(10058416048496861476264053793475873949645935904167570960039020625334949516197).toString(),
-            jsonProgram: [
-                123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101,
-                34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125, 125, 0,
-                0, 0, 0,
-            ].map((el) => el.toString()),
-            keys: [
-                [
-                    [34, 109, 97, 112, 34, 0, 0, 0, 0, 0].map((el) => el.toString()),
-                    [34, 97, 34, 0, 0, 0, 0, 0, 0, 0].map((el) => el.toString()),
+        try {
+            if (!isJSON(jsonText)) {
+                toast.error("Invalid JSON");
+                return;
+            }
+            setIsLoading(true);
+            const hardCoded = {
+                hashJsonProgram:
+                    BigInt(10058416048496861476264053793475873949645935904167570960039020625334949516197).toString(),
+                jsonProgram: [
+                    123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117,
+                    101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125,
+                    125, 0, 0, 0, 0,
+                ].map((el) => el.toString()),
+                keys: [
+                    [
+                        [34, 109, 97, 112, 34, 0, 0, 0, 0, 0].map((el) => el.toString()),
+                        [34, 97, 34, 0, 0, 0, 0, 0, 0, 0].map((el) => el.toString()),
+                    ],
                 ],
-            ],
-            values: [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0].map((el) => el.toString())],
-            keysOffset: [[[29, 33].map((el) => el.toString()), [36, 38].map((el) => el.toString())]],
-            valuesOffset: [[40, 43].map((el) => el.toString())],
-        };
-        console.log(hardCoded);
-        hardCoded.jsonProgram.map(BigInt);
-        const worker = new Worker("./worker.js");
-        worker.postMessage([hardCoded, "./jsonFull_final.zkey"]);
-        worker.onmessage = async function (e) {
-            const { proof, publicSignals } = e.data;
-            console.log("PROOF SUCCESSFULLY GENERATED: ", proof);
-        };
+                values: [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0].map((el) => el.toString())],
+                keysOffset: [[[29, 33].map((el) => el.toString()), [36, 38].map((el) => el.toString())]],
+                valuesOffset: [[40, 43].map((el) => el.toString())],
+            };
+            // hardCoded.jsonProgram.map(BigInt);
+
+            const worker = new Worker("./worker.js");
+            worker.postMessage([hardCoded, "./jsonFull_final.zkey"]);
+            worker.onmessage = async function (e) {
+                const { proof, publicSignals } = e.data;
+                setProofArtifacts({ proof, publicSignals });
+                console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
+                toast.success("Generated proof!");
+                setIsLoading(false);
+            };
+        } catch (ex) {
+            console.error(ex);
+            toast.error("Something went wrong :(");
+        }
     };
 
     useEffect(() => {
@@ -100,6 +119,10 @@ export default function Home() {
     }, []);
 
     const signJSON = async () => {
+        if (!isJSON(jsonText)) {
+            toast.error("Invalid JSON!");
+            return;
+        }
         const privateKey = await localforage.getItem("zkattestorPrivKey");
         const newFormattedJSON = JSON.stringify(JSON.parse(jsonText));
         setFormattedJSON(newFormattedJSON);
@@ -114,8 +137,10 @@ export default function Home() {
             };
         });
         setJsonDataStore(newJsonDataStore);
-
+        console.log("check here: ", jsonText);
+        lastJsonText.current = jsonText;
         const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
+        setSignature(signature);
     };
 
     const recursivelyResolveObject = (obj: Record<string, any>) => {
@@ -124,7 +149,18 @@ export default function Home() {
         }
     };
 
-    console.log(JsonDataStore);
+    const verifyProof = async () => {
+        try {
+            const resultVerified = await axios.post<VerifyPayload>("/api/verify", { ...proofArtifacts });
+            if (resultVerified.data.isValidProof) {
+                toast.success("Successfully verified proof!");
+            } else {
+                toast.error("Failed to verify proof");
+            }
+        } catch (ex) {
+            toast.error("Failed to verify proof");
+        }
+    };
 
     return (
         <>
@@ -134,11 +170,13 @@ export default function Home() {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <link rel="icon" href="/favicon.ico" />
             </Head>
-            <main className={styles.main}>
-                <div className={styles.center}>
-                    <h1 className="py-4">zkAttestor</h1>
+            <Container className={styles.main}>
+                <div className={`${styles.coolBackground} flex justify-center items-center py-2 strong`}>
+                    <h1 className="text-xl">zkJSON</h1>
                 </div>
 
+                <p className="mb-2">Select JSON elements to reveal in ZK-proof</p>
+                <div className="py-2"></div>
                 <div style={{ width: "800px" }} className="flex flex-col justify-center items-center">
                     {!hasKeypair ? (
                         "generating your key pair..."
@@ -147,11 +185,14 @@ export default function Home() {
                             <Textarea
                                 placeholder={"Paste your JSON string"}
                                 value={jsonText}
-                                onChangeHandler={setJsonText}
+                                onChangeHandler={(newVal: string) => {
+                                    setJsonText(newVal);
+                                }}
                             />
                             <div className="py-4"></div>
+
                             <Button backgroundColor="black" color="white" onClickHandler={signJSON}>
-                                {isLoading ? "loading..." : "Sign JSON"}
+                                Sign JSON
                             </Button>
                         </div>
                     )}
@@ -164,39 +205,57 @@ export default function Home() {
                     ) : null}
                     <br />
 
-                    <p className="mb-2">Select JSON elements to reveal in ZK-proof</p>
-
                     <ul>
                         <>
                             {Object.keys(JsonDataStore).map((key, index) => {
                                 return (
-                                    <>
-                                        <div key={index}>
-                                            <label className="inline-flex items-center ml-6">
-                                                <input
-                                                    type="checkbox"
-                                                    className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                                                    onChange={(e) => handleCheckmarkCheck(e, key)}
-                                                    checked={JsonDataStore[key] ? JsonDataStore[key].ticked : false}
-                                                />
-                                            </label>
-                                            <strong className="mb-4">{key}:</strong>{" "}
-                                            {typeof JsonDataStore[key]["value"] !== "object"
-                                                ? JsonDataStore[key]["value"]
-                                                : JSON.stringify(JsonDataStore[key]["value"])}
-                                        </div>
-                                    </>
+                                    <div key={index}>
+                                        <label className="inline-flex items-center ml-6">
+                                            <input
+                                                type="checkbox"
+                                                className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                                                onChange={(e) => handleCheckmarkCheck(e, key)}
+                                                checked={JsonDataStore[key] ? JsonDataStore[key].ticked : false}
+                                            />
+                                        </label>
+                                        <strong className="mb-4">{key}:</strong>{" "}
+                                        {typeof JsonDataStore[key]["value"] !== "object"
+                                            ? JsonDataStore[key]["value"]
+                                            : JSON.stringify(JsonDataStore[key]["value"])}
+                                    </div>
                                 );
                             })}
                         </>
                     </ul>
                     <div className="py-2"></div>
-                    {/* This should build the circuit, and 'attest' to certain values of the JSON */}
-                    <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
-                        {isLoading ? "loading..." : "Build Circuit & Generate Proof"}
-                    </Button>
+                    {jsonText && signature && (
+                        <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
+                            {isLoading ? "loading..." : "Generate Proof"}
+                        </Button>
+                    )}
+                    {proofArtifacts && Object.keys(proofArtifacts).length !== 0 ? (
+                        <div>
+                            <div className="py-2"></div>
+                            <div className="flex justify-center items-center text-center">
+                                <a
+                                    className="proofLink"
+                                    target="_blank"
+                                    href={"data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.proof)}
+                                    download={"proof.json"}
+                                    rel="noreferrer"
+                                >
+                                    View Proof
+                                </a>
+                            </div>
+                            <div className="py-2"></div>
+                            <Button backgroundColor="black" color="white" onClickHandler={verifyProof}>
+                                {isLoading ? "loading..." : "Verify Proof"}
+                            </Button>
+                        </div>
+                    ) : null}
                 </div>
-            </main>
+                <Toaster />
+            </Container>
         </>
     );
 }
