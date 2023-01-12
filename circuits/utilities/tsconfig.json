@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+      "target": "es6",
+      "resolveJsonModule": true,
+      "esModuleInterop": true,
+      "module": "commonjs"
+  },
+  "files": [ "preprocessor.ts" ]
+}

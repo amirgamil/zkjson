@@ -1,3 +1,5 @@
+import { buildPoseidon } from "circomlibjs"
+
 type JsonCircuitConfig = {
 	stackDepth: number,
 	numKeys: number,
@@ -12,7 +14,8 @@ type Ascii = number;
 type AttributeQuery = string[];
 
 type JsonCircuitInput = { 
-	jsonAscii: Ascii[],
+	hashJsonProgram: string,
+	json: Ascii[],
 	attributes: Ascii[][][],
 	values: Ascii[][],
 	keysOffsets: number[][][],
@@ -79,7 +82,32 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
 	return attrQuery.reduce((acc, c) => acc[c], obj);
 }
 
-function preprocessJson(obj: Object, attrQueries: AttributeQuery[]): JsonCircuitInput | null {
+async function calculatePoseidon(json: Ascii[]): Promise<string> {
+	const poseidon = await buildPoseidon();
+
+	let numComponents = 1;
+	if (json.length > 16) {
+		const tmp = json.length - 17;
+		numComponents = 2 + tmp;
+		if (tmp % 15 !== 0) {
+			numComponents++;
+		}
+	}
+
+	let poseidonRes = poseidon(json.slice(0, 16));
+	let i = 16;
+	while (i < json.length) {
+		poseidonRes = poseidon([poseidonRes].concat(json.slice(i, i+15)));
+		i += 15;
+	}
+	return poseidon.F.toObject(poseidonRes).toString();
+}
+
+async function preprocessJson(
+	obj: Object,
+	attrQueries: AttributeQuery[],
+	jsonProgramSize: number,
+): Promise<JsonCircuitInput | null> {
 
 	if (!checkAttributes(obj, attrQueries)) {
 		console.error("Attribute check failed!");
@@ -87,7 +115,7 @@ function preprocessJson(obj: Object, attrQueries: AttributeQuery[]): JsonCircuit
 	} 
 
 	const jsonString = JSON.stringify(obj);
-	const jsonAscii = toAscii(jsonString);
+	const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
 	const queryDepth = attrQueries[0].length;
 
 	const attributes = attrQueries.map(attrQ =>
@@ -129,9 +157,12 @@ function preprocessJson(obj: Object, attrQueries: AttributeQuery[]): JsonCircuit
 			}
 		}
 	);
+	
+	const hashJsonProgram = await calculatePoseidon(jsonAscii);
  
 	const result = {
-		jsonAscii,
+		hashJsonProgram,
+		json: jsonAscii,
 		attributes,
 		values,
 		keysOffsets,
@@ -173,5 +204,6 @@ function generateJsonCircuitConfig(
 
 // let json = {"name":"foobar","value":123,"list":["a",1]} 
 let json = {"name":"foobar","value":123,"map":{"a":"1"}}
-console.dir(preprocessJson(json, [["map", "a"]]), {depth: null});
+preprocessJson(json, [["map", "a"]], 50).then(res =>
+	console.dir(res, {depth: null}));
 
