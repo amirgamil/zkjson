@@ -427,7 +427,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     component valueMatchesList[numAttriExtracting];
     for (var i = 0; i < numAttriExtracting; i++) {
       // If numbers
-      if (attriTypes[attrExtractingIndices[i]] == 0) {
+      if (attriTypes[attrExtractingIndices[i]] != 1) {
           valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, 10);
           for (var attIndex = 0; attIndex < 10; attIndex++) {
               valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
@@ -458,7 +458,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, numAttriExtracting, attrExtra
     out <== finalCheck.out * (states[jsonProgramSize][4] + states[jsonProgramSize][8]);
 }
 
-component main { public [ jsonProgram, keysOffset ] } = JsonFull(4, 1, [6, 7, 3], 1, [0], [2], 2);
+component main { public [ jsonProgram, keysOffset ] } = JsonFull(4, 1, [[5, 3]], 1, [0], [2], 2);
 
 // {"name":"foobar","value":123,"map":{"a":true}}
 

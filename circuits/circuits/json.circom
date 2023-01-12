@@ -1,5 +1,6 @@
 pragma circom 2.1.0;
 
+include "../node_modules/circomlib/circuits/bitify.circom";
 include "../node_modules/circomlib/circuits/comparators.circom";
 include "../node_modules/circomlib/circuits/multiplexer.circom";
 
@@ -57,58 +58,76 @@ template StringValueCompare(jsonLength, LARGE_CONSTANT) {
     signal input JSON[jsonLength];
     signal input attribute[LARGE_CONSTANT];
 
-    component isEqualStartOps[jsonLength];
-    component isEqualEndOps[jsonLength + 1];
-    component isEqualNew[jsonLength];
-    component multiplexers[jsonLength];
+    signal inKey[LARGE_CONSTANT+1];
+    inKey[0] <== 1;
 
-    signal inKey[jsonLength + 1];
-    signal index[jsonLength + 1];
-    inKey[0] <== 0;
-    index[0] <== 0;
+    component equals[LARGE_CONSTANT];
+    for (var i = 0; i < LARGE_CONSTANT; i++) {
+        equals[i] = IsEqual();
+        equals[i].in[0] <== i;
+        equals[i].in[1] <== keyOffset[1] - keyOffset[0];
+        inKey[i+1] <== inKey[i] - equals[i].out;
+    }
 
-    // Set the first component to be 0.
-    isEqualEndOps[0] = IsEqual();
-    isEqualEndOps[0].in[0] <== 0;
-    isEqualEndOps[0].in[1] <== 1;
+    component shift = ShiftLeft(jsonLength, 1, jsonLength);
 
-    component stringEnd[jsonLength];
-    signal temp[jsonLength];
+    shift.shift <== keyOffset[0];
+    for (var i = 0; i < jsonLength; i++) {
+        shift.in[i] <== JSON[i];
+    }
 
-    for (var j = 0; j < jsonLength; j++) {
-        isEqualStartOps[j] = IsEqual();
-        isEqualEndOps[j + 1] = IsEqual();
-        isEqualNew[j] = IsEqual();
+    for (var i = 0; i < LARGE_CONSTANT; i++) {
+        0 === (shift.out[i] - attribute[i]) * inKey[i];
+    }
+}
 
-        isEqualStartOps[j].in[0] <== keyOffset[0];
-        isEqualStartOps[j].in[1] <== j;
-        isEqualEndOps[j + 1].in[0] <== keyOffset[1];
-        isEqualEndOps[j + 1].in[1] <== j;
+function log_ceil(n) {
+   var n_temp = n;
+   for (var i = 0; i < 254; i++) {
+       if (n_temp == 0) {
+          return i;
+       }
+       n_temp = n_temp \ 2;
+   }
+   return 254;
+}
 
-        // inKey is 1 when you're inside the attribute, and 0 when you're outside
-        inKey[j + 1] <== inKey[j] + isEqualStartOps[j].out - isEqualEndOps[j].out;
-     
-        // index inside attribute array
-        index[j + 1] <== inKey[j] + index[j] - isEqualEndOps[j].out;
-        // log(index[j + 1]);
-        // log(inKey[j + 1]);
-        // log("----");      
-        multiplexers[j] = Multiplexer(1, LARGE_CONSTANT);
-        for (var i = 0; i < LARGE_CONSTANT; i++) {
-             multiplexers[j].inp[i][0] <== attribute[i];
+template ShiftLeft(nIn, minShift, maxShift) {
+    signal input in[nIn];
+    signal input shift;
+    signal output out[nIn];
+
+    var shiftBits = log_ceil(maxShift - minShift);
+
+    component n2b = Num2Bits(shiftBits);
+    signal shifts[shiftBits][nIn];
+    
+    if (minShift == maxShift) {
+        n2b.in <== 0;
+        for (var i = 0; i < nIn; i++) {
+	        out[i] <== in[(i + minShift) % nIn];
+	    }
+    } else {
+	    n2b.in <== shift - minShift;
+
+        for (var idx = 0; idx < shiftBits; idx++) {
+            if (idx == 0) {
+                for (var j = 0; j < nIn; j++) {
+                    var tempIdx = (j + minShift + (1 << idx)) % nIn;
+                    var tempIdx2 = (j + minShift) % nIn;
+                    shifts[0][j] <== n2b.out[idx] * (in[tempIdx] - in[tempIdx2]) + in[tempIdx2];
+                }
+            } else {
+                for (var j = 0; j < nIn; j++) {
+                    var prevIdx = idx - 1;
+                    var tempIdx = (j + (1 << idx)) % nIn;
+                    shifts[idx][j] <== n2b.out[idx] * (shifts[prevIdx][tempIdx] - shifts[prevIdx][j]) + shifts[prevIdx][j];
+                }
+            }
         }
-        multiplexers[j].sel <== index[j + 1];
-
-        isEqualNew[j].in[0] <== multiplexers[j].out[0];
-        isEqualNew[j].in[1] <== JSON[j];
-        // only want to constrain that input is written
-
-        stringEnd[j] = IsEqual();
-        stringEnd[j].in[0] <== multiplexers[j].out[0];
-        stringEnd[j].in[1] <== 0;
-        // Either we are outside the key, or the string must match
-        temp[j] <== (isEqualNew[j].out * inKey[j + 1]) + (1 - inKey[j + 1]); 
-        1 === temp[j] * (1 - stringEnd[j].out) + stringEnd[j].out;        
+        for (var i = 0; i < nIn; i++) {
+            out[i] <== shifts[shiftBits - 1][i];
+        }
     }
 }
 
@@ -116,55 +135,15 @@ template StringKeyCompare(attrLength, jsonLength) {
     signal input keyOffset[2];
     signal input JSON[jsonLength];
     signal input attribute[attrLength];
-    component isEqualStartOps[jsonLength];
-    component isEqualEndOps[jsonLength + 1];
-    component isEqualNew[jsonLength];
-    component multiplexers[jsonLength];
-    
-    signal inKey[jsonLength + 1];
-    signal index[jsonLength + 1];
-    inKey[0] <== 0;
-    index[0] <== 0;
 
-    // Set the first component to be 0.
-    isEqualEndOps[0] = IsEqual();
-    isEqualEndOps[0].in[0] <== 0;
-    isEqualEndOps[0].in[1] <== 1;
+    component shift = ShiftLeft(jsonLength, 1, jsonLength);
 
-    // input validation but doesn't check about JSON
-    component attrLengthCorrect = IsEqual();
-    attrLengthCorrect.in[0] <== keyOffset[1] - keyOffset[0] + 1;
-    attrLengthCorrect.in[1] <== attrLength;
+    shift.shift <== keyOffset[0];
+    for (var i = 0; i < jsonLength; i++) {
+        shift.in[i] <== JSON[i];
+    }
 
-    for (var j = 0; j < jsonLength; j++) {
-        isEqualStartOps[j] = IsEqual();
-        isEqualEndOps[j + 1] = IsEqual();
-        isEqualNew[j] = IsEqual();
-
-        isEqualStartOps[j].in[0] <== keyOffset[0];
-        isEqualStartOps[j].in[1] <== j;
-        isEqualEndOps[j + 1].in[0] <== keyOffset[1];
-        isEqualEndOps[j + 1].in[1] <== j;
-
-        // inKey is 1 when you're inside the attribute, and 0 when you're outside
-        inKey[j + 1] <== inKey[j] + isEqualStartOps[j].out - isEqualEndOps[j].out;
-     
-        // index inside attribute array
-        index[j + 1] <== inKey[j] + index[j] - isEqualEndOps[j].out;
-        // log(index[j + 1]);
-        // log(inKey[j + 1]);
-        // log("----");      
-        multiplexers[j] = Multiplexer(1, attrLength);
-        for (var i = 0; i < attrLength; i++) {
-             multiplexers[j].inp[i][0] <== attribute[i];
-        }
-        multiplexers[j].sel <== index[j + 1];
-
-        // LOOP
-        isEqualNew[j].in[0] <== multiplexers[j].out[0];
-        isEqualNew[j].in[1] <== JSON[j];
-        // Either we are outside the key, or the string must match
-        1 === (isEqualNew[j].out * inKey[j + 1]) + (1 - inKey[j + 1]);
+    for (var i = 0; i < attrLength; i++) {
+        shift.out[i] === attribute[i];
     }
 }
-
