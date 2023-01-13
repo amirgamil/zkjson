@@ -10,6 +10,7 @@ import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
 import {
+    Ascii,
     isJSON,
     isJSONStore,
     JSONStringifyCustom,
@@ -42,6 +43,7 @@ export default function Home() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
     const [signature, setSignature] = useState<Object | undefined>(undefined);
+    const [hash, setHash] = useState<string | undefined>(undefined);
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
@@ -63,6 +65,18 @@ export default function Home() {
         setJsonDataStore(newJson);
     };
 
+    type FullJsonCircuitInput = {
+        jsonProgram: Ascii[];
+        keys: Ascii[][][];
+        values: Ascii[][];
+        keysOffset: number[][][];
+        valuesOffset: number[][];
+        hashJsonProgram: string,
+        pubKey: string[],
+        R8: string[] ,
+        S: string[] 
+    };
+
     const generateProof = async () => {
         try {
             if (!isJSON(jsonText)) {
@@ -72,15 +86,45 @@ export default function Home() {
             setIsLoading(true);
             // hardCoded.jsonProgram.map(BigInt);
 
-            const worker = new Worker("./worker.js");
-            worker.postMessage([hardCodedInput, "./jsonFull_final.zkey"]);
-            worker.onmessage = async function (e) {
-                const { proof, publicSignals } = e.data;
-                setProofArtifacts({ proof, publicSignals });
-                console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
-                toast.success("Generated proof!");
-                setIsLoading(false);
-            };
+
+            if (jsonText) {
+                console.log(formattedJSON);
+                const obj = await preprocessJson(JSON.parse(jsonText), [["map", "a"]], 50, 3);
+
+                const worker = new Worker("./worker.js");
+
+                if (obj && typeof hash == 'string' &&
+                    signature !== undefined &&
+                    "A" in signature &&
+                    "R8" in signature &&
+                    "S" in signature &&
+                    Array.isArray(signature["A"]) &&
+                    Array.isArray(signature["R8"]) &&
+                    Array.isArray(signature["S"])
+                ) {
+                    let objFull: FullJsonCircuitInput = {
+                        ...obj,
+                        "hashJsonProgram": hash,
+                        "pubKey": signature["A"].map((item) => item.toString()),
+                        "R8": signature["R8"].map((item) => item.toString()),
+                        "S": signature["S"].map((item) => item.toString())
+                    }
+                    worker.postMessage([hardCodedInput, "./jsonFull_final.zkey"]);
+                }
+                else {
+                    toast.error("Invalid proving request. Please ensure that your JSON includes the required attributes");
+                    return;
+                }
+
+                worker.onmessage = async function (e) {
+                    const { proof, publicSignals } = e.data;
+                    setProofArtifacts({ proof, publicSignals });
+    
+                    console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
+                    toast.success("Generated proof!");
+                    setIsLoading(false);
+                };
+            }
         } catch (ex) {
             console.error(ex);
             toast.error("Something went wrong :(");
@@ -138,6 +182,7 @@ export default function Home() {
         console.log(newJsonDataStore);
         setJsonDataStore(newJsonDataStore);
         console.log("formatted: ", newFormattedJSON.length, jsonText.length);
+
         let hash = await calculatePoseidon(toAscii(newFormattedJSON));
         console.log("hash: ", hash);
         let hashValue = BigInt(hash);
@@ -152,19 +197,9 @@ export default function Home() {
             // ethers.utils.toUtf8Bytes(newFormattedJSON)
             Uint8Array.from(hashArr)
         );
-        // todo: refactor into function and select keys based on checkmarks
-        let obj = preprocessJson(JSON.parse(jsonText), [["map", "a"]], 50, 3);
-        if (!obj) {
-            toast.error("Unexpected error");
-            return;
-        }
-        // console.log(JSONStringifyCustom(signature));
-        obj["hashJsonProgram"] = hash;
-        obj["pubKey"] = signature["A"].map((item) => item.toString());
-        obj["R8"] = signature["R8"].map((item) => item.toString());
-        obj["S"] = signature["S"].map((item) => item.toString());
+
+        setHash(hash);
         setSignature(signature);
-        console.log(JSON.stringify(obj));
     };
 
     const verifyProof = async () => {
