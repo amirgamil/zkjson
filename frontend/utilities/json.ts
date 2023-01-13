@@ -120,7 +120,6 @@ function checkAttributes(obj: {[key: string]: any}, attrQueries: AttributeQuery[
 }
 
 function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[] | undefined): Ascii[][] {
-  if (attrQueries) {
 	return attrQueries.map(attrQ => {
 		const value = getValue(obj, attrQ);
 		if (typeof(value) === "string") {
@@ -129,7 +128,6 @@ function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[] | undefin
 			return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH); 
 		}
 	});
-  }
 }
 
 function getValue(obj: Object, attrQuery: AttributeQuery) {
