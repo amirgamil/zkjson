@@ -33,6 +33,10 @@ const Container = styled.main`
     .viewProof {
         text-decoration: underline !important;
     }
+
+    .underlineContainer {
+        text-decoration: underline !important;
+    }
 `;
 
 export default function Home() {
@@ -81,6 +85,7 @@ export default function Home() {
         }
     };
 
+    console.log(ed.utils.bytesToHex(ed.utils.randomPrivateKey()));
     useEffect(() => {
         async function checkIsRegistered() {
             const maybePrivKey = await localforage.getItem("zkattestorPrivKey");
@@ -223,7 +228,7 @@ export default function Home() {
                     {proofArtifacts && Object.keys(proofArtifacts).length !== 0 ? (
                         <div>
                             <div className="py-2"></div>
-                            <div className="flex justify-center items-center text-center">
+                            <div className="flex underlineContainer justify-center items-center text-center">
                                 <a
                                     className="viewProof text-underline"
                                     target="_blank"
