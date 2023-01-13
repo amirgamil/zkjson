@@ -31,14 +31,14 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
 
     component mAnd[jsonProgramSize][numKeys];
      // verify json hashes to provided hash
-    component poseidon = PoseidonLarge(jsonProgramSize);
+    // component poseidon = PoseidonLarge(jsonProgramSize);
     
     signal input valuesOffset[numKeys][2];
     signal output out;
 
     component num2bits[jsonProgramSize];
 
-    // constrain jsonBits == jsonProgram via Eddsa, if that fails
+    // TODO constrain jsonBits == jsonProgram
     for (var i = 0; i < jsonProgramSize; i++) {
       num2bits[i] = Num2Bits(8);
       num2bits[i].in <== jsonProgram[i];
@@ -101,7 +101,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         jsonStack[0][j][1] <== 0;
     }
 
-    signal intermediates[jsonProgramSize][28];
+    signal intermediates[jsonProgramSize][8];
     signal preedge[jsonProgramSize][2];
     signal more_intermediates[jsonProgramSize][stackDepth][2][2];
     signal extra_intermediates[jsonProgramSize][2];
@@ -115,7 +115,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     // state 15: fal
     // state 16: fals
     for (var i = 0; i < jsonProgramSize; i++) {
-        poseidon.in[i] <== jsonProgram[i];
+        // poseidon.in[i] <== jsonProgram[i];
         charTypes[i] = getCharType();
 
         charTypes[i].in <== jsonProgram[i];
@@ -125,22 +125,17 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         var isSquareBracketsClosed = charTypes[i].out[4];
 
         // Array
-        intermediates[i][20] <== states[i][3] * isSquareBracketsOpen;
-        intermediates[i][21] <== intermediates[i][20] + states[i][16] * isSquareBracketsOpen;
-        states[i + 1][16] <== intermediates[i][21] + states[i][17] * isSquareBracketsOpen;
+        states[i + 1][16] <== (states[i][3] + states[i][16] + states[i][17]) * isSquareBracketsOpen;
 
         states[i + 1][17] <== states[i][18] * isComma;
 
         // Transition to 5
-        intermediates[i][14] <== states[i][6] * charTypes[i].out[8];
+        intermediates[i][0] <== states[i][6] * charTypes[i].out[8];
 
-        intermediates[i][15] <== intermediates[i][14] + states[i][4] * (charTypes[i].out[0] + charTypes[i].out[4]);
-        intermediates[i][16] <== intermediates[i][15] + states[i][7] * (charTypes[i].out[0] + charTypes[i].out[4]);
-        intermediates[i][17] <== intermediates[i][16] + states[i][11] * charTypes[i].out[13];
-        intermediates[i][18] <== intermediates[i][17] + states[i][15] * charTypes[i].out[13];
-        intermediates[i][19] <== intermediates[i][18] + states[i][18] * isSquareBracketsClosed;
-        intermediates[i][24] <== intermediates[i][19] + states[i][16] * isSquareBracketsClosed;
-        preedge[i][0] <== intermediates[i][24] + states[i][1] * charTypes[i].out[0];
+        intermediates[i][1] <== intermediates[i][0] + (states[i][4] + states[i][7]) * (charTypes[i].out[0] + charTypes[i].out[4]);
+        intermediates[i][2] <== intermediates[i][1] + (states[i][11] + states[i][15]) * charTypes[i].out[13];
+        intermediates[i][3] <== intermediates[i][2] + (states[i][18] + states[i][16]) * isSquareBracketsClosed;
+        preedge[i][0] <== intermediates[i][3] + states[i][1] * charTypes[i].out[0];
 
         // Allow transitions into strings, numbers, booleans, and itself from 16 and 18
 
@@ -165,10 +160,8 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         states[i+1][0] <== 0;
 
         // intermediates[i][0] <== states[i][0] * charTypes[i].out[1];
-        intermediates[i][1] <== states[i][0] * charTypes[i].out[1];
-        intermediates[i][2] <== intermediates[i][1] + states[i][7] * charTypes[i].out[2];
-        intermediates[i][3] <== intermediates[i][2] + states[i][3] * charTypes[i].out[1];
-        states[i+1][1] <==  intermediates[i][3] + states[i][4] * charTypes[i].out[2];
+        intermediates[i][4] <== (states[i][0] + states[i][3]) * charTypes[i].out[1];
+        states[i+1][1] <==  intermediates[i][4] + (states[i][7] + states[i][4]) * charTypes[i].out[2];
 
         // Transition to 3
         states[i+1][2] <== states[i][5] * charTypes[i].out[8];
@@ -177,27 +170,20 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         states[i+1][3] <== states[i][2] * charTypes[i].out[5];
 
         // Transition to 5
-        intermediates[i][4] <== states[i][6] * charTypes[i].out[8];
-        intermediates[i][5] <== intermediates[i][4] + states[i][4] * charTypes[i].out[0];
-        intermediates[i][6] <== intermediates[i][5] + states[i][7] * charTypes[i].out[0];
-        intermediates[i][11] <== intermediates[i][6] + states[i][11] * charTypes[i].out[13];
-        intermediates[i][12] <== intermediates[i][11] + states[i][15] * charTypes[i].out[13];
-        intermediates[i][13] <== intermediates[i][12] + states[i][18] * isSquareBracketsClosed;
-        intermediates[i][25] <== intermediates[i][13] + states[i][16] * isSquareBracketsClosed;
-      
-        preedge[i][1] <== intermediates[i][25] + states[i][1] * charTypes[i].out[0];
+        intermediates[i][5] <== states[i][6] * charTypes[i].out[8];
+        intermediates[i][6] <== intermediates[i][5] + (states[i][1] + states[i][4] + states[i][7]) * charTypes[i].out[0];
+        intermediates[i][7] <== intermediates[i][6] + (states[i][11] + states[i][15]) * charTypes[i].out[13];
+        preedge[i][1] <== intermediates[i][7] + (states[i][16] + states[i][18]) * isSquareBracketsClosed;
         
         // Transition to 6
-        intermediates[i][7] <== states[i][1] * charTypes[i].out[8];
-        states[i+1][5] <== intermediates[i][7] + states[i][5] * (1 - charTypes[i].out[8]);
+        states[i+1][5] <== (states[i][1] - states[i][5]) * charTypes[i].out[8] + states[i][5];
 
         // Transition to 7
-        intermediates[i][8] <== (states[i][3] + states[i][16] + states[i][18]) * charTypes[i].out[8];
-        states[i+1][6] <== intermediates[i][8] + states[i][6] * (1 - charTypes[i].out[8]);
+        states[i+1][6] <== states[i][6] + (states[i][3] + states[i][16] + states[i][18] - states[i][6]) * charTypes[i].out[8];
 
         // Transition to 8
-        intermediates[i][9] <== (states[i][3] + states[i][16] + states[i][18]) * charTypes[i].out[6];
-        states[i+1][7] <==  intermediates[i][9] + states[i][7] * charTypes[i].out[6];
+        states[i+1][7] <==  (states[i][3] + states[i][7] + states[i][16] + states[i][18]) * charTypes[i].out[6];
+
 
         finishedJsonOr[i] = OR();
         if (i > 0) {
@@ -374,7 +360,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     }
    
     // assert hash is the same as what is passed in (including trailing 0s)
-    poseidon.out === hashJsonProgram;
+    // poseidon.out === hashJsonProgram;
 
     component finalCheck = IsEqual();
     finalCheck.in[0] <== stackPtr[jsonProgramSize - 1];
