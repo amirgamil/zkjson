@@ -57,6 +57,7 @@ template StringValueCompare(jsonLength, LARGE_CONSTANT) {
     signal input keyOffset[2];
     signal input JSON[jsonLength];
     signal input attribute[LARGE_CONSTANT];
+    signal input on;
 
     signal inKey[LARGE_CONSTANT+1];
     inKey[0] <== 1;
@@ -76,8 +77,10 @@ template StringValueCompare(jsonLength, LARGE_CONSTANT) {
         shift.in[i] <== JSON[i];
     }
 
+    signal intermediates[LARGE_CONSTANT];
     for (var i = 0; i < LARGE_CONSTANT; i++) {
-        0 === (shift.out[i] - attribute[i]) * inKey[i];
+        intermediates[i] <== (shift.out[i] - attribute[i]) * inKey[i];
+        0 === intermediates[i] * on;
     }
 }
 

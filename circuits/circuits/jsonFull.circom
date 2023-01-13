@@ -9,22 +9,24 @@ include "./json.circom";
 include "./charType.circom";
 
 // @jsonProgramSize = large constant for max size json
+// @jsonProgramSize = large constant for max size json
 template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriTypes, queryDepths) {
     // string of all the json
     
     var jsonProgramSize = 50;
     var jsonProgramSizeBits = 400;
+    var maxValueSize = 40;
     
     signal input pubKey[256];
     signal hashbits[254];
     signal input R8[256];
     signal input S[256];
 
-
+    signal input inputReveal[numKeys];
 
     signal input jsonProgram[jsonProgramSize];
     signal input hashJsonProgram;
-    signal input values[numKeys][10];
+    signal input values[numKeys][maxValueSize];
     signal input keys[numKeys][stackDepth][10];
 
     signal input keysOffset[numKeys][stackDepth][2];
@@ -335,16 +337,19 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     component valueMatchesNumbers[numKeys];
     component valueMatchesStrings[numKeys];
     component valueMatchesList[numKeys];
+
     for (var i = 0; i < numKeys; i++) {
       // If numbers
       if (attriTypes[attrExtractingIndices[i]] != 1) {
-          valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, 10);
-          for (var attIndex = 0; attIndex < 10; attIndex++) {
-              valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
-          }
-          valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
-          valueMatchesStrings[i].JSON <== jsonProgram;
+        valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, maxValueSize);
+        for (var attIndex = 0; attIndex < maxValueSize; attIndex++) {
+          valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
+        }
+        valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+        valueMatchesStrings[i].JSON <== jsonProgram;
+        valueMatchesStrings[i].on <== inputReveal[i];
       }
+
       // If strings
       else if (attriTypes[attrExtractingIndices[i]] == 1) {
           valueMatchesNumbers[i] = NumberValueCompare(jsonProgramSize);
@@ -375,9 +380,10 @@ component main { public [ jsonProgram, keysOffset, pubKey, R8, S ] } = JsonFull(
 /* INPUT = {
   "hashJsonProgram": "1078902799906427895065744095725393469743232200640180720201388375607563017615",
 	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125, 125, 0, 0, 0, 0],
-	"keys": [[[34, 109, 97, 112, 34, 0, 0, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0]]],
-	"values": [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0]],
-	"keysOffset": [[[29, 33], [36, 38]]],
+	"keys": [[[34, 109, 97, 112, 34, 0, 0, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],
+	"values": [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+  "inputReveal":[0],
+	"keysOffset": [[[29, 33], [36, 38], [0, 0]]],
 	"valuesOffset": [[40, 43]],
   "pubKey":["0","1","1","1","0","1","0","1","0","1","1","0","1","0","1","0","1","0","0","0","1","1","1","1","0","0","1","0","0","0","0","1","1","1","1","0","1","1","1","0","0","0","1","0","1","1","0","0","1","1","0","0","1","0","0","0","0","0","1","0","0","1","1","0","1","1","0","0","1","0","0","1","0","0","0","0","0","1","1","0","0","1","1","0","1","0","1","0","0","1","1","0","0","0","0","0","0","0","1","0","0","1","0","0","1","0","0","1","0","1","0","0","1","0","1","0","1","0","0","0","0","0","1","0","0","1","1","0","0","1","1","1","1","0","0","1","1","1","0","0","1","0","1","1","1","1","0","1","0","1","0","1","1","0","1","1","1","0","1","1","1","0","0","0","0","1","1","1","0","0","0","1","1","0","0","1","1","1","0","1","1","0","0","1","1","0","1","0","1","1","1","0","0","0","1","0","0","0","0","0","1","1","0","0","1","1","0","1","1","0","0","1","0","0","0","1","0","0","0","1","0","0","1","1","0","1","0","0","0","1","1","0","0","1","0","0","1","0","1","0","1","0","0","0","1","0","0","1","0","1","0","1","0","1","0","1"],
   "R8":["1","1","1","0","1","0","1","1","1","1","1","0","1","0","1","1","1","1","1","1","1","0","0","0","0","0","1","0","0","0","1","1","0","1","1","1","1","1","0","0","1","1","0","1","0","1","1","1","0","1","0","0","1","0","1","0","0","0","1","1","0","1","1","1","1","1","0","0","0","0","1","1","0","0","0","1","1","0","1","1","0","1","0","1","1","0","1","1","1","1","0","0","0","1","0","1","1","0","1","1","1","0","1","0","1","1","0","1","1","0","0","0","1","1","0","0","0","1","1","0","0","1","1","0","0","0","0","1","0","1","0","1","0","0","1","1","1","0","1","0","1","0","0","1","0","0","0","0","1","0","0","1","1","0","0","1","1","1","0","1","0","1","0","0","1","0","1","1","0","0","0","1","1","0","1","0","1","1","0","0","0","1","1","0","0","0","0","1","1","0","1","1","0","0","0","0","1","1","0","1","1","0","0","1","0","0","0","0","0","1","1","1","0","0","1","1","1","1","1","1","0","1","0","0","1","1","1","0","1","0","1","1","0","1","0","0","1","1","0","0","0","0","1","0","0","1","1","1","1","1","0","0","0","0","0","1"],
