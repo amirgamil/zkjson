@@ -24,6 +24,7 @@ import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
 import { calculatePoseidon, generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
 import { Card } from "../components/card";
+import Link from "next/link";
 
 const Container = styled.main`
     .viewProof {
@@ -178,11 +179,11 @@ export default function Partners() {
             <Container className={styles.main}>
                 <div className={`${styles.coolBackground} w-full flex justify-center items-center py-2 strong`}>
                     <div className="w-full flex justify-end items-center">
-                        <div style={{ flex: "0.55" }}></div>
-                        <h1 style={{ flex: "0.45" }} className="text-xl">
+                        <div style={{ flex: "0.5" }}></div>
+                        <h1 style={{ flex: "0.55" }} className="text-xl">
                             zkJSON
                         </h1>
-                        <a href="/">Home</a>
+                        <Link href="/">Home</Link>
                     </div>
                 </div>
 

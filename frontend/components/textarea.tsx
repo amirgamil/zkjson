@@ -1,6 +1,6 @@
 import styled from "styled-components";
 
-const Container = styled.div`
+const Textareacontainer = styled.div`
     position: relative;
     width: 100%;
     z-index: 40;
@@ -50,13 +50,13 @@ interface Props {
 
 export const Textarea = ({ value, onChangeHandler, placeholder }: Props) => {
     return (
-        <Container className="w-full relative">
+        <Textareacontainer className="w-full relative">
             <pre className="hidden">{value}</pre>
             <textarea
                 placeholder={placeholder}
                 value={value}
                 onChange={(evt) => onChangeHandler(evt.target.value)}
             ></textarea>
-        </Container>
+        </Textareacontainer>
     );
 };
