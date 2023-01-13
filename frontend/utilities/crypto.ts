@@ -1,4 +1,6 @@
 import { EddsaSignature } from "./types";
+import { buildPoseidon } from "circomlibjs";
+import { Ascii } from "./json";
 
 const buildEddsa = require("circomlibjs").buildEddsa;
 const buildBabyjub = require("circomlibjs").buildBabyjub;
@@ -18,6 +20,18 @@ function buffer2bits(buff: any) {
         }
     }
     return res;
+}
+
+export async function calculatePoseidon(json: Ascii[]): Promise<string> {
+    const poseidon = await buildPoseidon();
+
+    let poseidonRes = poseidon(json.slice(0, 16));
+    let i = 16;
+    while (i < json.length) {
+        poseidonRes = poseidon([poseidonRes].concat(json.slice(i, i + 15)));
+        i += 15;
+    }
+    return poseidon.F.toObject(poseidonRes).toString();
 }
 
 export const generateEddsaSignature = async (privateKey: Uint8Array, msg: Uint8Array): Promise<EddsaSignature> => {

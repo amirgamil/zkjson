@@ -58,7 +58,7 @@ const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => {
 function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; keys: string[] }) {
     // jsonText
 
-    const handleCheckmarkCheck = (event: React.ChangeEvent<HTMLInputElement>, keys: string[]) => {
+    const handleCheckmarkCheck = (event, keys: string[]) => {
         props.setKeyInDataStore(keys, event.target.checked);
     };
     const [fetchJson, setFetchedJson] = useState<null | JSON_STORE | JSON_EL>(null);
