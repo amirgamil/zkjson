@@ -9,11 +9,28 @@ import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
-import { isJSON, JSONStringifyCustom, padJSONString } from "../utilities/json";
+import { isJSON, JSONStringifyCustom, padJSONString, toAscii } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
 import { generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
+
+import { buildPoseidon } from "circomlibjs";
+
+
+type Ascii = number;
+
+async function calculatePoseidon(json: Ascii[]): Promise<string> {
+	const poseidon = await buildPoseidon();
+
+	let poseidonRes = poseidon(json.slice(0, 16));
+	let i = 16;
+	while (i < json.length) {
+		poseidonRes = poseidon([poseidonRes].concat(json.slice(i, i+15)));
+		i += 15;
+	}
+	return poseidon.F.toObject(poseidonRes).toString();
+}
 
 interface JSON_EL {
     value: string;
@@ -119,10 +136,19 @@ export default function Home() {
         });
         setJsonDataStore(newJsonDataStore);
         console.log("formatted: ", newFormattedJSON.length, jsonText.length);
+        let hash = await calculatePoseidon(toAscii(newFormattedJSON));
+        console.log("hash: ", hash)
+        let hashValue = BigInt(hash);
+        let hashArr = [];
+        for (let i = 0; i < 16; i++) {
+            hashArr.push(Number(hashValue % BigInt(256)));
+            hashValue = hashValue / BigInt(256);
+        }
         // const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
         const signature = await generateEddsaSignature(
             privateKey as Uint8Array,
-            ethers.utils.toUtf8Bytes(newFormattedJSON)
+            // ethers.utils.toUtf8Bytes(newFormattedJSON)
+            Uint8Array.from(hashArr)
         );
         console.log(JSONStringifyCustom(signature));
         setSignature(signature);
