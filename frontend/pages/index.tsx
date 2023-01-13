@@ -67,7 +67,7 @@ const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => {
         if (isJSONStore(ptr) && typeof key === "string" && ptr[key] && ptr[key]) {
             ptr = ptr[key];
         } else {
-            // ERROR
+            
         }
     }
     return ptr;
@@ -229,7 +229,7 @@ export default function Home() {
 
         const createJson = (parsedJsonPtr: any, parsedJsonDataStorePtr: any) => {
             for (var key in parsedJsonPtr) {
-                if (typeof parsedJsonPtr[key] === 'string') {
+                if (['string', 'number', 'boolean'].includes(typeof parsedJsonPtr[key])) {
                     let newLeaf: JSON_EL = {
                         value: parsedJsonPtr[key],
                         ticked: false
