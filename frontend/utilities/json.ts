@@ -21,5 +21,35 @@ export function padJSONString(jsonString: string, desiredLength: number) {
 export type Ascii = number;
 
 export function toAscii(str: string): Ascii[] {
-    return [...str].map((_, i) => str.charCodeAt(i));
+    return Array.from(str).map((_, i) => str.charCodeAt(i));
 }
+
+export interface JSON_EL {
+    value: string;
+    ticked: boolean;
+}
+
+export interface JSON_STORE {
+    [key: string]: JSON_EL | JSON_STORE;
+}
+
+export function isJSONStore(store: JSON_STORE | JSON_EL): store is JSON_STORE {
+    return store && !("value" in store);
+}
+
+export interface ProofArtifacts {
+    publicSignals: string[];
+    proof: Object;
+}
+
+export const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => {
+    let ptr: JSON_EL | JSON_STORE = json;
+    //TODO: handle nesting
+    for (var key of keys) {
+        if (isJSONStore(ptr) && typeof key === "string" && ptr[key] && ptr[key]) {
+            ptr = ptr[key];
+        } else {
+        }
+    }
+    return ptr;
+};

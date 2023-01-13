@@ -9,29 +9,21 @@ import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
-import { isJSON, JSONStringifyCustom, padJSONString, toAscii } from "../utilities/json";
+import {
+    isJSON,
+    isJSONStore,
+    JSONStringifyCustom,
+    JSON_EL,
+    JSON_STORE,
+    padJSONString,
+    ProofArtifacts,
+    toAscii,
+} from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
 import { calculatePoseidon, generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
-
-interface JSON_EL {
-    value: string;
-    ticked: boolean;
-}
-
-interface JSON_STORE {
-    [key: string]: JSON_EL | JSON_STORE;
-}
-
-function isJSONStore(store: JSON_STORE | JSON_EL): store is JSON_STORE {
-    return store && !("value" in store);
-}
-
-interface ProofArtifacts {
-    publicSignals: string[];
-    proof: Object;
-}
+import { Card } from "../components/card";
 
 const Container = styled.main`
     .viewProof {
@@ -42,91 +34,6 @@ const Container = styled.main`
         text-decoration: underline !important;
     }
 `;
-
-const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => {
-    let ptr: JSON_EL | JSON_STORE = json;
-    //TODO: handle nesting
-    for (var key of keys) {
-        if (isJSONStore(ptr) && typeof key === "string" && ptr[key] && ptr[key]) {
-            ptr = ptr[key];
-        } else {
-        }
-    }
-    return ptr;
-};
-
-function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; keys: string[] }) {
-    // jsonText
-
-    const handleCheckmarkCheck = (event: React.ChangeEvent<HTMLInputElement>, keys: string[]) => {
-        props.setKeyInDataStore(keys, event.target.checked);
-    };
-    const [fetchJson, setFetchedJson] = useState<null | JSON_STORE | JSON_EL>(null);
-    const [numKeys, setNumKeys] = useState<number>(0);
-
-    useEffect(() => {
-        setFetchedJson(getRecursiveKeyInDataStore(props.keys, props.dataStore));
-        setNumKeys(Object.keys(getRecursiveKeyInDataStore(props.keys, props.dataStore)).length);
-    });
-
-    return (
-        <>
-            <ul className="ml-4">
-                <>
-                    {fetchJson && isJSONStore(fetchJson) && (
-                        <>
-                            {Object.keys(getRecursiveKeyInDataStore(props.keys, props.dataStore)).map(
-                                (key: string, index: any) => {
-                                    return (
-                                        <>
-                                            {isJSONStore(fetchJson[key]) ? (
-                                                <>
-                                                    <strong className="mb-4">{key}: &#123;</strong>
-                                                    <Card
-                                                        dataStore={props.dataStore}
-                                                        setKeyInDataStore={props.setKeyInDataStore}
-                                                        keys={props.keys.concat([key])}
-                                                    ></Card>
-                                                    <strong className="mb-4">
-                                                        &#125;
-                                                        {index != numKeys - 1 && <>,</>}
-                                                    </strong>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div key={index}>
-                                                        <strong className="mb-4 mr-4">{key}: </strong>
-                                                        <label className="inline-flex items-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                                                                onChange={(e) =>
-                                                                    handleCheckmarkCheck(e, props.keys.concat([key]))
-                                                                }
-                                                                checked={
-                                                                    fetchJson[key] && fetchJson[key].ticked
-                                                                        ? true
-                                                                        : false
-                                                                }
-                                                            />
-                                                        </label>
-                                                        <strong className="mb-4 mr-4">
-                                                            {index != numKeys - 1 && <>,</>}
-                                                        </strong>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </>
-                                    );
-                                }
-                            )}
-                        </>
-                    )}
-                </>
-            </ul>
-        </>
-    );
-}
 
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
@@ -247,12 +154,6 @@ export default function Home() {
         setSignature(signature);
     };
 
-    const recursivelyResolveObject = (obj: Record<string, any>) => {
-        if (typeof obj !== "object") {
-            return obj;
-        }
-    };
-
     const verifyProof = async () => {
         try {
             const resultVerified = await axios.post<VerifyPayload>("/api/verify", { ...proofArtifacts });
@@ -279,9 +180,9 @@ export default function Home() {
                     <div className="w-full flex justify-end items-center">
                         <div style={{ flex: "0.55" }}></div>
                         <h1 style={{ flex: "0.45" }} className="text-xl">
-                            zkJON
+                            zkJSON
                         </h1>
-                        <a href="/api">Trusted partners</a>
+                        <a href="/partners">Trusted partners</a>
                     </div>
                 </div>
 
