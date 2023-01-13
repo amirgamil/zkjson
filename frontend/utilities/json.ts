@@ -56,12 +56,16 @@ export const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => 
 
 type AttributeQuery = string[];
 
-type JsonCircuitInput = {
-    jsonProgram: Ascii[];
-    keys: Ascii[][][];
-    values: Ascii[][];
-    keysOffset: number[][][];
-    valuesOffset: number[][];
+type JsonCircuitInput = { 
+	jsonProgram: Ascii[],
+	keys: Ascii[][][];
+	values: Ascii[][],
+	keysOffset: number[][][],
+	valuesOffset: number[][],
+	hashJsonProgram?: string,
+	pubKey?: string[],
+	R8?: string[],
+	S?: string[]
 };
 
 const ATTR_VAL_MAX_LENGTH = 10; // TODO: idk
@@ -119,15 +123,17 @@ function checkAttributes(obj: { [key: string]: any }, attrQueries: AttributeQuer
     return true;
 }
 
-function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[] | undefined): Ascii[][] {
-    return attrQueries.map((attrQ) => {
-        const value = getValue(obj, attrQ);
-        if (typeof value === "string") {
-            return padAscii(toAscii(`"${value}"`), ATTR_VAL_MAX_LENGTH);
-        } else if (typeof value === "number" || typeof value == "boolean") {
-            return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH);
-        }
-    });
+function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[]): Ascii[][] {
+	return attrQueries.map(attrQ => {
+		const value = getValue(obj, attrQ);
+		if (typeof(value) === "string") {
+			return padAscii(toAscii(`"${value}"`), ATTR_VAL_MAX_LENGTH);
+		} else if (typeof(value) === "number" || typeof(value) == "boolean") {
+			return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH); 
+		} else {
+			return [];
+		}
+	});
 }
 
 function getValue(obj: Object, attrQuery: AttributeQuery) {
@@ -135,11 +141,11 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
 }
 
 export function preprocessJson(
-    obj: Object,
-    attrQueries: AttributeQuery[],
-    jsonProgramSize: number,
-    stackDepth: number
-): Promise<JsonCircuitInput | null> {
+	obj: Object,
+	attrQueries: AttributeQuery[],
+	jsonProgramSize: number,
+	stackDepth: number,
+): JsonCircuitInput {
     if (!checkAttributes(obj, attrQueries)) {
         console.error("Attribute check failed!");
         return null;
@@ -148,6 +154,7 @@ export function preprocessJson(
     const jsonString = JSON.stringify(obj);
     const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
     const queryDepth = attrQueries[0].length;
+
 
     const attributes = padAscii2D(
         attrQueries.map((attrQ) =>

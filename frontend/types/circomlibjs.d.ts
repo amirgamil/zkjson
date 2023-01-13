@@ -1,1 +1,1 @@
-declare module circomlibjs;
+declare module circomlibjs

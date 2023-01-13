@@ -19,6 +19,7 @@ import {
     preprocessJson,
     ProofArtifacts,
     toAscii,
+    preprocessJson,
 } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
