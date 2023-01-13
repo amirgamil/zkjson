@@ -84,7 +84,7 @@ function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[]): Ascii[]
 		const value = getValue(obj, attrQ);
 		if (typeof(value) === "string") {
 			return padAscii(toAscii(`"${value}"`), ATTR_VAL_MAX_LENGTH);
-		} else if (typeof(value) === "number") {
+		} else if (typeof(value) === "number" || typeof(value) == "boolean") {
 			return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH); 
 		}
 	});
@@ -96,15 +96,6 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
 
 async function calculatePoseidon(json: Ascii[]): Promise<string> {
 	const poseidon = await buildPoseidon();
-
-	let numComponents = 1;
-	if (json.length > 16) {
-		const tmp = json.length - 17;
-		numComponents = 2 + tmp;
-		if (tmp % 15 !== 0) {
-			numComponents++;
-		}
-	}
 
 	let poseidonRes = poseidon(json.slice(0, 16));
 	let i = 16;
@@ -164,6 +155,8 @@ async function preprocessJson(
 					}
 					end++;
 				}
+			} else if (typeof(value) == 'boolean') {
+				return [begin, begin + value.toString().length - 1];
 			} else {
 				console.error("Unsupported value type found while calculating offsets!");
 				// return [begin, -1];
@@ -216,7 +209,7 @@ function generateJsonCircuitConfig(
 }
 
 // let json = {"name":"foobar","value":123,"list":["a",1]} 
-let json = {"name":"foobar","value":123,"map":{"a":"1"}}
+let json = {"name":"foobar","value":123,"map":{"a":true}}
 preprocessJson(json, [["map", "a"]], 50, 3).then(res =>
 	console.dir(res, {depth: null}));
 
