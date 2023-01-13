@@ -13,7 +13,7 @@ import { isJSON, JSONStringifyCustom, padJSONString } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
-import { generateEddsaSignature } from "../utilities/crypto";
+import { generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
 
 interface JSON_EL {
     value: string;
@@ -29,11 +29,7 @@ interface ProofArtifacts {
     proof: Object;
 }
 
-const Container = styled.main`
-    .proofLink {
-        text-decoration: underline !important;
-    }
-`;
+const Container = styled.main``;
 
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
@@ -64,28 +60,10 @@ export default function Home() {
                 return;
             }
             setIsLoading(true);
-            const hardCoded = {
-                hashJsonProgram:
-                    BigInt(10058416048496861476264053793475873949645935904167570960039020625334949516197).toString(),
-                jsonProgram: [
-                    123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117,
-                    101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125,
-                    125, 0, 0, 0, 0,
-                ].map((el) => el.toString()),
-                keys: [
-                    [
-                        [34, 109, 97, 112, 34, 0, 0, 0, 0, 0].map((el) => el.toString()),
-                        [34, 97, 34, 0, 0, 0, 0, 0, 0, 0].map((el) => el.toString()),
-                    ],
-                ],
-                values: [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0].map((el) => el.toString())],
-                keysOffset: [[[29, 33].map((el) => el.toString()), [36, 38].map((el) => el.toString())]],
-                valuesOffset: [[40, 43].map((el) => el.toString())],
-            };
             // hardCoded.jsonProgram.map(BigInt);
 
             const worker = new Worker("./worker.js");
-            worker.postMessage([hardCoded, "./jsonFull_final.zkey"]);
+            worker.postMessage([hardCodedInput, "./jsonFull_final.zkey"]);
             worker.onmessage = async function (e) {
                 const { proof, publicSignals } = e.data;
                 setProofArtifacts({ proof, publicSignals });
@@ -135,6 +113,7 @@ export default function Home() {
                 ticked: false,
             };
         });
+        setJsonDataStore(newJsonDataStore);
         console.log("formatted: ", newFormattedJSON.length, jsonText.length);
         // const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
         const signature = await generateEddsaSignature(
@@ -240,7 +219,7 @@ export default function Home() {
                             <div className="py-2"></div>
                             <div className="flex justify-center items-center text-center">
                                 <a
-                                    className="proofLink"
+                                    className="text-underline"
                                     target="_blank"
                                     href={"data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.proof)}
                                     download={"proof.json"}
