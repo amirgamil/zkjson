@@ -1,20 +1,7 @@
-import { buildPoseidon } from "circomlibjs"
-
-type JsonCircuitConfig = {
-	stackDepth: number,
-	numKeys: number,
-	keyLengths: number[],
-	numAttriExtracting: number,
-	attrExtractingIndices: number[],
-	attriTypes: number[],
-	queryDepth: number,
-};
-
 type Ascii = number;
 type AttributeQuery = string[];
 
 type JsonCircuitInput = { 
-	hashJsonProgram: string,
 	json: Ascii[],
 	keys: Ascii[][][];
 	values: Ascii[][],
@@ -94,18 +81,6 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
 	return attrQuery.reduce((acc, c) => acc[c], obj);
 }
 
-async function calculatePoseidon(json: Ascii[]): Promise<string> {
-	const poseidon = await buildPoseidon();
-
-	let poseidonRes = poseidon(json.slice(0, 16));
-	let i = 16;
-	while (i < json.length) {
-		poseidonRes = poseidon([poseidonRes].concat(json.slice(i, i+15)));
-		i += 15;
-	}
-	return poseidon.F.toObject(poseidonRes).toString();
-}
-
 async function preprocessJson(
 	obj: Object,
 	attrQueries: AttributeQuery[],
@@ -164,10 +139,8 @@ async function preprocessJson(
 		}
 	);
 	
-	const hashJsonProgram = await calculatePoseidon(jsonAscii);
  
 	const result = {
-		hashJsonProgram,
 		json: jsonAscii,
 		keys: attributes,
 		values,
@@ -179,36 +152,6 @@ async function preprocessJson(
 
 }
 
-function generateJsonCircuitConfig(
-	obj: Object,
-	attrQueries: AttributeQuery[]
-): JsonCircuitConfig {
-	const queryDepth = attrQueries[0].length;
-	const attriTypes = attrQueries.map(attrQ => { 
-		const value = getValue(obj, attrQ);
-		if (typeof(value) == "number") {
-			return 0;
-		} else if (typeof(value) === "string") {
-			return 1;
-		} else {
-			console.error(
-				`Unsupported type ${typeof(value)} from ${attrQ}, value ${value}`);
-			return -1;
-		}
-	});
-
-	return { 
-		stackDepth: 4, // TODO: hardcoded? 
-		numKeys: attrQueries.length,
-		keyLengths: [], // TODO: idt this is still needed?
-		numAttriExtracting: queryDepth,
-		attrExtractingIndices: [], // TODO: also dt it's needed anymore
-		attriTypes,
-		queryDepth,
-	}
-}
-
-// let json = {"name":"foobar","value":123,"list":["a",1]} 
 let json = {"name":"foobar","value":123,"map":{"a":true}}
 preprocessJson(json, [["map", "a"]], 50, 3).then(res =>
 	console.dir(res, {depth: null}));

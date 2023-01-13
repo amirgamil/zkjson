@@ -9,7 +9,7 @@ import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
-import { isJSON, JSONStringifyCustom, padJSONString, toAscii } from "../utilities/json";
+import { isJSON, JSONStringifyCustom, padJSONString, toAscii, preprocessJson } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
@@ -42,7 +42,7 @@ interface JSON_STORE {
 }
 
 function isJSONStore(store: JSON_STORE | JSON_EL): store is JSON_STORE { 
-    return store && !("value" in store);
+    return store && !("ticked" in store);
 }  
 
 interface ProofArtifacts {
@@ -245,7 +245,7 @@ export default function Home() {
         console.log("hash: ", hash)
         let hashValue = BigInt(hash);
         let hashArr = [];
-        for (let i = 0; i < 16; i++) {
+        for (let i = 0; i < 32; i++) {
             hashArr.push(Number(hashValue % BigInt(256)));
             hashValue = hashValue / BigInt(256);
         }
@@ -255,8 +255,15 @@ export default function Home() {
             // ethers.utils.toUtf8Bytes(newFormattedJSON)
             Uint8Array.from(hashArr)
         );
+        // todo: refactor into function and select keys based on checkmarks
+        let obj = preprocessJson(JSON.parse(jsonText), [["map", "a"]], 50, 3);
         // console.log(JSONStringifyCustom(signature));
+        obj["hashJsonProgram"] = hash;
+        obj["pubKey"] = signature["A"].map(item => item.toString());
+        obj["R8"] = signature["R8"].map(item => item.toString());
+        obj["S"] = signature["S"].map(item => item.toString());
         setSignature(signature);
+        console.log(JSON.stringify(obj));
     };
 
     const recursivelyResolveObject = (obj: Record<string, any>) => {
