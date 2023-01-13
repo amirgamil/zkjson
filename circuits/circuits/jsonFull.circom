@@ -6,106 +6,7 @@ include "../node_modules/circomlib/circuits/bitify.circom";
 include "../node_modules/circomlib/circuits/gates.circom";
 include "./poseidonLarge.circom";
 include "./json.circom";
-include "./inRange.circom";
-
-template getCharType() {
-  signal input in; // ascii value
-  signal output out[18]; // 
-
-  component equals[7];
-  for (var i = 0; i < 6; i ++) {
-    equals[i] = IsEqual();
-    if (i == 0) {
-      equals[i].in[0] <== 125;
-    }
-    else if (i ==1) {
-      equals[i].in[0] <== 123;
-    }
-    else if (i == 2) {
-      equals[i].in[0] <== 44;
-    }
-    else if (i == 3) {
-      equals[i].in[0] <== 91;
-    }
-    else if (i == 4) {
-      equals[i].in[0] <== 93;
-    }
-    else if (i == 5) {
-      equals[i].in[0] <== 58;
-    }
-    equals[i].in[1] <== in;
-    out[i] <== equals[i].out;
-  }
-  equals[6] = IsEqual();
-  equals[6].in[0] <== 0;
-  equals[6].in[1] <== in;
-  out[9] <== equals[6].out;
-
-  component inRange[3];
-  for (var i = 0; i < 3; i++) {
-    inRange[i] = InRange(8);
-    inRange[i].in <== in;
-  }
-  inRange[0].left <== 48;
-  inRange[0].right <== 57;
-
-  inRange[1].left <== 97;
-  inRange[1].right <== 122;
-
-  inRange[2].left <== 65;
-  inRange[2].right <== 90;
-
-  out[6] <== inRange[0].out;
-  out[7] <== inRange[1].out + inRange[2].out;
-
-  component equalsQuote = IsEqual();
-  equalsQuote.in[0] <== in;
-  equalsQuote.in[1] <== 34;
-
-  out[8] <== equalsQuote.out;
-
-  // out[10-17] is t, r, u, e, f, a, l, s
-
-  // 116, 114, 117, 101, 102, 97, 108, 115
-
-  component equals2[8];
-  for (var i = 0; i < 8; i ++) {
-    equals2[i] = IsEqual();
-    equals2[i].in[0] <== in;
-    if (i == 0) {
-      equals2[i].in[1] <== 116;
-      out[10] <== equals2[i].out;
-    }
-    if (i == 1) {
-      equals2[i].in[1] <== 114;
-      out[11] <== equals2[i].out;
-    }
-    if (i == 2) {
-      equals2[i].in[1] <== 117;
-      out[12] <== equals2[i].out;
-    }
-    if (i == 3) {
-      equals2[i].in[1] <== 101;
-      out[13] <== equals2[i].out;
-    }
-    if (i == 4) {
-      equals2[i].in[1] <== 102;
-      out[14] <== equals2[i].out;
-    }
-    if (i == 5) {
-      equals2[i].in[1] <== 97;
-      out[15] <== equals2[i].out;
-    }
-    if (i == 6) {
-      equals2[i].in[1] <== 108;
-      out[16] <== equals2[i].out;
-    }
-    if (i == 7) {
-      equals2[i].in[1] <== 115;
-      out[17] <== equals2[i].out;
-    }
-  }
-}
+include "./charType.circom";
 
 // @jsonProgramSize = large constant for max size json
 template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriTypes, queryDepths) {
@@ -115,7 +16,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     var jsonProgramSizeBits = 400;
     
     signal input pubKey[256];
-    signal jsonBits[jsonProgramSizeBits];
+    signal hashbits[254];
     signal input R8[256];
     signal input S[256];
 
@@ -130,29 +31,29 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
 
     component mAnd[jsonProgramSize][numKeys];
      // verify json hashes to provided hash
-    component poseidon = PoseidonLarge(jsonProgramSize);
+    // component poseidon = PoseidonLarge(jsonProgramSize);
     
     signal input valuesOffset[numKeys][2];
     signal output out;
 
     component num2bits[jsonProgramSize];
 
-    // constrain jsonBits == jsonProgram via Eddsa, if that fails
+    component hash2bits = Num2Bits(254);
+
     for (var i = 0; i < jsonProgramSize; i++) {
-      num2bits[i] = Num2Bits(8);
+      num2bits[i] = Num2Bits(7);
       num2bits[i].in <== jsonProgram[i];
-      for (var j = 0; j < 8; j++) {
-        jsonBits[i*8 + j] <== num2bits[i].out[j];
-      }
     }
+
+    hash2bits.in <== hashJsonProgram;
 
     // first constrain that passed in JSON is indeed what was signed
     //TODO: change when we change jsonProgramSize
-    component eddsa = EdDSAVerifier(jsonProgramSizeBits);
+    component eddsa = EdDSAVerifier(254);
     eddsa.A <== pubKey;
     eddsa.R8 <== R8;
     eddsa.S <== S;
-    eddsa.msg  <== jsonBits;
+    eddsa.msg  <== hash2bits.out;
 
     // + 1 to allocate empty memory field
     // array of depth where index is 1 corresponding to what depth in the stack we are
@@ -200,7 +101,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         jsonStack[0][j][1] <== 0;
     }
 
-    signal intermediates[jsonProgramSize][28];
+    signal intermediates[jsonProgramSize][8];
     signal preedge[jsonProgramSize][2];
     signal more_intermediates[jsonProgramSize][stackDepth][2][2];
     signal extra_intermediates[jsonProgramSize][2];
@@ -214,7 +115,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     // state 15: fal
     // state 16: fals
     for (var i = 0; i < jsonProgramSize; i++) {
-        poseidon.in[i] <== jsonProgram[i];
+        // poseidon.in[i] <== jsonProgram[i];
         charTypes[i] = getCharType();
 
         charTypes[i].in <== jsonProgram[i];
@@ -224,22 +125,17 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         var isSquareBracketsClosed = charTypes[i].out[4];
 
         // Array
-        intermediates[i][20] <== states[i][3] * isSquareBracketsOpen;
-        intermediates[i][21] <== intermediates[i][20] + states[i][16] * isSquareBracketsOpen;
-        states[i + 1][16] <== intermediates[i][21] + states[i][17] * isSquareBracketsOpen;
+        states[i + 1][16] <== (states[i][3] + states[i][16] + states[i][17]) * isSquareBracketsOpen;
 
         states[i + 1][17] <== states[i][18] * isComma;
 
         // Transition to 5
-        intermediates[i][14] <== states[i][6] * charTypes[i].out[8];
+        intermediates[i][0] <== states[i][6] * charTypes[i].out[8];
 
-        intermediates[i][15] <== intermediates[i][14] + states[i][4] * (charTypes[i].out[0] + charTypes[i].out[4]);
-        intermediates[i][16] <== intermediates[i][15] + states[i][7] * (charTypes[i].out[0] + charTypes[i].out[4]);
-        intermediates[i][17] <== intermediates[i][16] + states[i][11] * charTypes[i].out[13];
-        intermediates[i][18] <== intermediates[i][17] + states[i][15] * charTypes[i].out[13];
-        intermediates[i][19] <== intermediates[i][18] + states[i][18] * isSquareBracketsClosed;
-        intermediates[i][24] <== intermediates[i][19] + states[i][16] * isSquareBracketsClosed;
-        preedge[i][0] <== intermediates[i][24] + states[i][1] * charTypes[i].out[0];
+        intermediates[i][1] <== intermediates[i][0] + (states[i][4] + states[i][7]) * (charTypes[i].out[0] + charTypes[i].out[4]);
+        intermediates[i][2] <== intermediates[i][1] + (states[i][11] + states[i][15]) * charTypes[i].out[13];
+        intermediates[i][3] <== intermediates[i][2] + (states[i][18] + states[i][16]) * isSquareBracketsClosed;
+        preedge[i][0] <== intermediates[i][3] + states[i][1] * charTypes[i].out[0];
 
         // Allow transitions into strings, numbers, booleans, and itself from 16 and 18
 
@@ -264,10 +160,8 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         states[i+1][0] <== 0;
 
         // intermediates[i][0] <== states[i][0] * charTypes[i].out[1];
-        intermediates[i][1] <== states[i][0] * charTypes[i].out[1];
-        intermediates[i][2] <== intermediates[i][1] + states[i][7] * charTypes[i].out[2];
-        intermediates[i][3] <== intermediates[i][2] + states[i][3] * charTypes[i].out[1];
-        states[i+1][1] <==  intermediates[i][3] + states[i][4] * charTypes[i].out[2];
+        intermediates[i][4] <== (states[i][0] + states[i][3]) * charTypes[i].out[1];
+        states[i+1][1] <==  intermediates[i][4] + (states[i][7] + states[i][4]) * charTypes[i].out[2];
 
         // Transition to 3
         states[i+1][2] <== states[i][5] * charTypes[i].out[8];
@@ -276,27 +170,20 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         states[i+1][3] <== states[i][2] * charTypes[i].out[5];
 
         // Transition to 5
-        intermediates[i][4] <== states[i][6] * charTypes[i].out[8];
-        intermediates[i][5] <== intermediates[i][4] + states[i][4] * charTypes[i].out[0];
-        intermediates[i][6] <== intermediates[i][5] + states[i][7] * charTypes[i].out[0];
-        intermediates[i][11] <== intermediates[i][6] + states[i][11] * charTypes[i].out[13];
-        intermediates[i][12] <== intermediates[i][11] + states[i][15] * charTypes[i].out[13];
-        intermediates[i][13] <== intermediates[i][12] + states[i][18] * isSquareBracketsClosed;
-        intermediates[i][25] <== intermediates[i][13] + states[i][16] * isSquareBracketsClosed;
-      
-        preedge[i][1] <== intermediates[i][25] + states[i][1] * charTypes[i].out[0];
+        intermediates[i][5] <== states[i][6] * charTypes[i].out[8];
+        intermediates[i][6] <== intermediates[i][5] + (states[i][1] + states[i][4] + states[i][7]) * charTypes[i].out[0];
+        intermediates[i][7] <== intermediates[i][6] + (states[i][11] + states[i][15]) * charTypes[i].out[13];
+        preedge[i][1] <== intermediates[i][7] + (states[i][16] + states[i][18]) * isSquareBracketsClosed;
         
         // Transition to 6
-        intermediates[i][7] <== states[i][1] * charTypes[i].out[8];
-        states[i+1][5] <== intermediates[i][7] + states[i][5] * (1 - charTypes[i].out[8]);
+        states[i+1][5] <== (states[i][1] - states[i][5]) * charTypes[i].out[8] + states[i][5];
 
         // Transition to 7
-        intermediates[i][8] <== (states[i][3] + states[i][16] + states[i][18]) * charTypes[i].out[8];
-        states[i+1][6] <== intermediates[i][8] + states[i][6] * (1 - charTypes[i].out[8]);
+        states[i+1][6] <== states[i][6] + (states[i][3] + states[i][16] + states[i][18] - states[i][6]) * charTypes[i].out[8];
 
         // Transition to 8
-        intermediates[i][9] <== (states[i][3] + states[i][16] + states[i][18]) * charTypes[i].out[6];
-        states[i+1][7] <==  intermediates[i][9] + states[i][7] * charTypes[i].out[6];
+        states[i+1][7] <==  (states[i][3] + states[i][7] + states[i][16] + states[i][18]) * charTypes[i].out[6];
+
 
         finishedJsonOr[i] = OR();
         if (i > 0) {
@@ -473,7 +360,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     }
    
     // assert hash is the same as what is passed in (including trailing 0s)
-    poseidon.out === hashJsonProgram;
+    // poseidon.out === hashJsonProgram;
 
     component finalCheck = IsEqual();
     finalCheck.in[0] <== stackPtr[jsonProgramSize - 1];
@@ -492,7 +379,7 @@ component main { public [ jsonProgram, keysOffset, pubKey, R8, S ] } = JsonFull(
 	"values": [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0]],
 	"keysOffset": [[[29, 33], [36, 38], [0, 0]]],
 	"valuesOffset": [[40, 43]],
-  "pubKey":["1","0","0","1","0","1","1","0","1","0","1","1","1","0","0","0","1","1","0","0","0","1","0","1","1","1","1","1","1","1","0","1","0","1","0","1","0","0","0","1","1","1","1","1","0","1","1","1","1","0","1","1","1","0","0","0","1","1","1","0","0","0","0","1","0","0","1","0","0","0","0","1","1","0","0","0","1","1","1","1","0","0","0","0","0","1","0","0","1","0","1","1","1","1","1","0","1","0","1","1","0","1","1","0","0","1","0","0","0","1","0","1","0","1","1","1","0","0","1","0","1","0","0","1","0","0","0","1","1","1","1","0","0","1","0","0","0","0","0","0","1","1","1","1","1","1","1","1","0","1","1","1","1","0","1","0","0","1","1","1","0","0","0","1","1","0","0","1","0","1","1","1","0","1","1","1","0","1","0","1","1","1","0","1","0","1","0","0","1","1","0","1","0","0","0","1","0","0","1","1","0","1","0","0","0","1","0","0","1","1","0","0","0","1","0","1","0","1","1","0","1","1","1","1","1","1","0","1","0","0","0","0","0","1","1","1","1","1","1","1","1","1","1","0","0","1","1","1","1","1","0","0","0","1","0","0"],
-  "R8":["1","1","1","1","1","1","0","0","0","0","0","0","1","1","0","1","1","0","1","0","1","1","1","0","1","0","0","0","1","1","1","1","1","1","0","0","1","0","0","1","0","0","0","0","0","0","1","0","0","0","1","0","0","1","1","0","0","0","1","0","0","1","0","0","1","0","1","1","1","1","0","0","0","1","0","1","0","1","1","1","1","1","0","0","0","1","0","0","0","1","0","1","1","1","1","0","1","1","0","1","0","1","1","0","1","0","1","1","0","0","0","1","0","0","0","0","1","1","0","0","0","1","0","0","1","1","0","1","0","0","0","0","0","1","0","0","1","1","0","1","1","0","0","0","1","1","1","0","0","0","0","1","0","0","1","0","0","0","1","1","0","0","0","0","1","0","1","1","1","1","1","0","0","0","0","0","0","1","0","1","0","1","1","0","1","1","0","0","1","1","1","1","1","1","1","0","0","0","1","1","0","0","1","1","1","0","1","1","1","1","0","1","1","1","0","1","1","0","0","0","0","0","0","0","0","0","0","0","1","1","1","0","1","1","0","0","0","1","1","0","0","1","1","1","0","1","1","0","1","0","0","0","1","0","0","0"],
-  "S":["1","1","0","0","1","1","1","1","1","0","1","1","0","1","1","1","0","0","1","0","1","1","0","0","0","1","0","1","0","0","1","1","1","0","1","0","1","1","0","0","1","1","1","1","0","0","0","0","0","0","0","0","1","0","1","1","1","0","0","0","1","1","0","0","0","0","1","1","1","1","1","1","1","0","1","1","0","0","1","0","1","1","1","1","1","1","0","0","1","0","1","1","0","0","0","0","0","1","1","1","1","1","1","0","1","0","0","1","0","1","1","0","1","0","1","0","0","1","0","1","1","0","0","1","1","0","0","0","1","1","0","1","0","0","0","1","1","0","0","1","0","1","0","1","0","1","0","0","0","0","1","1","1","0","0","0","1","0","0","1","1","1","1","1","0","1","1","0","0","1","0","0","0","0","1","0","0","1","1","1","1","0","1","1","1","0","0","0","0","0","1","0","0","0","1","1","0","1","1","0","0","0","0","1","0","0","0","1","0","0","0","1","1","1","1","1","1","0","1","1","0","1","1","1","0","1","0","0","0","1","0","0","0","0","1","1","1","0","1","0","0","1","0","0","1","1","0","0","1","1","0","0","0","0","0","0"]
-} */
+  "pubKey":["0","1","1","1","0","1","0","1","0","1","1","0","1","0","1","0","1","0","0","0","1","1","1","1","0","0","1","0","0","0","0","1","1","1","1","0","1","1","1","0","0","0","1","0","1","1","0","0","1","1","0","0","1","0","0","0","0","0","1","0","0","1","1","0","1","1","0","0","1","0","0","1","0","0","0","0","0","1","1","0","0","1","1","0","1","0","1","0","0","1","1","0","0","0","0","0","0","0","1","0","0","1","0","0","1","0","0","1","0","1","0","0","1","0","1","0","1","0","0","0","0","0","1","0","0","1","1","0","0","1","1","1","1","0","0","1","1","1","0","0","1","0","1","1","1","1","0","1","0","1","0","1","1","0","1","1","1","0","1","1","1","0","0","0","0","1","1","1","0","0","0","1","1","0","0","1","1","1","0","1","1","0","0","1","1","0","1","0","1","1","1","0","0","0","1","0","0","0","0","0","1","1","0","0","1","1","0","1","1","0","0","1","0","0","0","1","0","0","0","1","0","0","1","1","0","1","0","0","0","1","1","0","0","1","0","0","1","0","1","0","1","0","0","0","1","0","0","1","0","1","0","1","0","1","0","1"],
+  "R8":["1","1","1","0","1","0","1","1","1","1","1","0","1","0","1","1","1","1","1","1","1","0","0","0","0","0","1","0","0","0","1","1","0","1","1","1","1","1","0","0","1","1","0","1","0","1","1","1","0","1","0","0","1","0","1","0","0","0","1","1","0","1","1","1","1","1","0","0","0","0","1","1","0","0","0","1","1","0","1","1","0","1","0","1","1","0","1","1","1","1","0","0","0","1","0","1","1","0","1","1","1","0","1","0","1","1","0","1","1","0","0","0","1","1","0","0","0","1","1","0","0","1","1","0","0","0","0","1","0","1","0","1","0","0","1","1","1","0","1","0","1","0","0","1","0","0","0","0","1","0","0","1","1","0","0","1","1","1","0","1","0","1","0","0","1","0","1","1","0","0","0","1","1","0","1","0","1","1","0","0","0","1","1","0","0","0","0","1","1","0","1","1","0","0","0","0","1","1","0","1","1","0","0","1","0","0","0","0","0","1","1","1","0","0","1","1","1","1","1","1","0","1","0","0","1","1","1","0","1","0","1","1","0","1","0","0","1","1","0","0","0","0","1","0","0","1","1","1","1","1","0","0","0","0","0","1"],
+  "S":["1","1","1","0","1","1","1","1","0","0","0","1","0","1","0","1","1","1","0","1","1","1","1","1","0","1","1","1","0","0","0","1","1","1","0","1","1","1","1","0","1","0","0","0","1","0","0","0","1","1","1","0","1","1","1","1","0","0","0","0","1","0","1","0","1","1","0","1","0","0","1","0","1","0","1","1","1","0","0","1","0","0","0","1","0","0","1","1","0","0","1","0","0","1","1","0","1","1","0","1","0","0","1","0","1","0","0","0","0","1","1","0","1","0","1","0","1","0","1","0","1","1","0","0","0","1","1","1","0","1","1","0","0","0","0","0","1","1","0","1","0","0","1","1","0","1","0","1","0","0","0","1","0","1","0","1","0","1","1","0","1","0","1","0","1","1","1","1","0","0","1","0","0","0","1","1","0","0","0","0","0","0","0","1","1","1","1","0","0","1","1","0","1","1","1","1","1","1","1","1","1","0","0","1","0","1","0","1","0","0","1","1","0","0","1","1","0","1","1","1","0","1","1","0","1","1","1","1","1","1","0","1","1","0","1","0","0","0","0","1","1","1","1","1","0","1","1","0","0","0","1","0","0","0","0","0"]
+  } */

@@ -17,3 +17,9 @@ export function JSONStringifyCustom(val: any) {
 export function padJSONString(jsonString: string, desiredLength: number) {
     return jsonString.padEnd(desiredLength, "\0");
 }
+
+type Ascii = number;
+
+export function toAscii(str: string): Ascii[] {
+	return [...str].map((_, i) => str.charCodeAt(i));
+}

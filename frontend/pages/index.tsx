@@ -9,11 +9,28 @@ import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
-import { isJSON, JSONStringifyCustom, padJSONString } from "../utilities/json";
+import { isJSON, JSONStringifyCustom, padJSONString, toAscii } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
 import { generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
+
+import { buildPoseidon } from "circomlibjs";
+
+
+type Ascii = number;
+
+async function calculatePoseidon(json: Ascii[]): Promise<string> {
+	const poseidon = await buildPoseidon();
+
+	let poseidonRes = poseidon(json.slice(0, 16));
+	let i = 16;
+	while (i < json.length) {
+		poseidonRes = poseidon([poseidonRes].concat(json.slice(i, i+15)));
+		i += 15;
+	}
+	return poseidon.F.toObject(poseidonRes).toString();
+}
 
 interface JSON_EL {
     value: string;
@@ -21,8 +38,12 @@ interface JSON_EL {
 }
 
 interface JSON_STORE {
-    [key: string]: JSON_EL;
+    [key: string]: JSON_EL | JSON_STORE;
 }
+
+function isJSONStore(store: JSON_STORE | JSON_EL): store is JSON_STORE { 
+    return store && !("value" in store);
+}  
 
 interface ProofArtifacts {
     publicSignals: string[];
@@ -39,6 +60,91 @@ const Container = styled.main`
     }
 `;
 
+const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => {
+    let ptr: JSON_EL | JSON_STORE = json;
+    //TODO: handle nesting
+    for (var key of keys) {
+        if (isJSONStore(ptr) && typeof key === "string" && ptr[key] && ptr[key]) {
+            ptr = ptr[key];
+        } else {
+            // ERROR
+        }
+    }
+    return ptr;
+};
+
+
+function Card(props: { dataStore: JSON_STORE, setKeyInDataStore: any, keys: string[]}) {
+    // jsonText
+
+    const handleCheckmarkCheck = (event, keys: string[]) => {
+        props.setKeyInDataStore(keys, event.target.checked);
+    };
+    const [fetchJson, setFetchedJson] = useState<null | JSON_STORE | JSON_EL>(null);
+    const [numKeys, setNumKeys] = useState<number>(0);
+
+    useEffect(() => {
+        setFetchedJson(
+            getRecursiveKeyInDataStore(props.keys, props.dataStore)
+        );
+        setNumKeys(Object.keys(
+            getRecursiveKeyInDataStore(props.keys, props.dataStore)
+        ).length);
+    });
+
+    return <>
+        <ul className="ml-4">
+            <>
+                {
+                    (fetchJson && isJSONStore(fetchJson)) && <>
+                        {Object.keys(
+                            getRecursiveKeyInDataStore(props.keys, props.dataStore)
+                        ).map((key: string, index: any) => {
+                            return (
+                                <>
+                                    {
+                                        isJSONStore(fetchJson[key]) ? 
+                                        <>
+                                            <strong className="mb-4">{key}: &#123;</strong>
+                                            <Card dataStore={props.dataStore} setKeyInDataStore={props.setKeyInDataStore} keys={props.keys.concat([key])}></Card>
+                                            <strong className="mb-4">&#125;
+                                                {
+                                                    index != numKeys - 1 && <>
+                                                        ,
+                                                    </>
+                                                }
+                                            </strong>
+                                        </> : <>
+                                            <div key={index}>
+                                                <strong className="mb-4 mr-4">{key}: </strong>
+                                                <label className="inline-flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                                                        onChange={(e) => handleCheckmarkCheck(e, props.keys.concat([key]))}
+                                                        checked={fetchJson[key] && fetchJson[key].ticked ? true : false}
+                                                    />
+                                                </label>
+                                                <strong className="mb-4 mr-4">
+                                                    {
+                                                        index != numKeys - 1 && <>
+                                                            ,
+                                                        </>
+                                                    }
+                                                </strong>
+                                            </div>
+                                        </>
+                                    }
+                                </>
+                            )
+                        })}
+                    </>
+                }
+            </>
+        </ul>
+    </>;
+}
+
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -48,17 +154,21 @@ export default function Home() {
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
 
-    const setKeyInDataStore = (key: string, state: boolean) => {
+    const setRecursiveKeyInDataStore = (keys: string[], state: boolean) => {
         let newJson = { ...JsonDataStore };
+        let ptr: JSON_EL | JSON_STORE = newJson;
         //TODO: handle nesting
-        if (typeof key === "string" && newJson[key]) {
-            newJson[key].ticked = state;
+        for (var key of keys) {
+            if (isJSONStore(ptr) && typeof key === "string" && ptr[key] && ptr[key]) {
+                ptr = ptr[key];
+            } else {
+                // ERROR
+            }
+        }
+        if (!isJSONStore(ptr)) {
+            ptr["ticked"] = state;
         }
         setJsonDataStore(newJson);
-    };
-
-    const handleCheckmarkCheck = (event, key: string) => {
-        setKeyInDataStore(key, event.target.checked);
     };
 
     const generateProof = async () => {
@@ -116,20 +226,41 @@ export default function Home() {
         // Populate JSON_STORE with data from JSON.parse(jsonText);
         let newJsonDataStore: JSON_STORE = {};
         let parsedJson = JSON.parse(jsonText);
-        Object.keys(parsedJson).forEach((key) => {
-            newJsonDataStore[key] = {
-                value: parsedJson[key],
-                ticked: false,
-            };
-        });
+
+        const createJson = (parsedJsonPtr: any, parsedJsonDataStorePtr: any) => {
+            for (var key in parsedJsonPtr) {
+                if (typeof parsedJsonPtr[key] === 'string') {
+                    let newLeaf: JSON_EL = {
+                        value: parsedJsonPtr[key],
+                        ticked: false
+                    }
+                    parsedJsonDataStorePtr[key] = newLeaf;
+                } else {
+                    let newJsonStore: JSON_STORE = {};
+                    parsedJsonDataStorePtr[key] = newJsonStore;
+                    createJson(parsedJsonPtr[key], parsedJsonDataStorePtr[key]);
+                }
+            }
+        }
+        createJson(parsedJson, newJsonDataStore);
+        console.log(newJsonDataStore)
         setJsonDataStore(newJsonDataStore);
         console.log("formatted: ", newFormattedJSON.length, jsonText.length);
+        let hash = await calculatePoseidon(toAscii(newFormattedJSON));
+        console.log("hash: ", hash)
+        let hashValue = BigInt(hash);
+        let hashArr = [];
+        for (let i = 0; i < 16; i++) {
+            hashArr.push(Number(hashValue % BigInt(256)));
+            hashValue = hashValue / BigInt(256);
+        }
         // const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
         const signature = await generateEddsaSignature(
             privateKey as Uint8Array,
-            ethers.utils.toUtf8Bytes(newFormattedJSON)
+            // ethers.utils.toUtf8Bytes(newFormattedJSON)
+            Uint8Array.from(hashArr)
         );
-        console.log(JSONStringifyCustom(signature));
+        // console.log(JSONStringifyCustom(signature));
         setSignature(signature);
     };
 
@@ -195,36 +326,15 @@ export default function Home() {
                     ) : null}
                     <br />
 
-                    <div className="flex flex-col justify-center items-center">
-                        <ul>
-                            <>
-                                {Object.keys(JsonDataStore).map((key, index) => {
-                                    return (
-                                        <div key={index}>
-                                            <label className="inline-flex items-center ml-6">
-                                                <input
-                                                    type="checkbox"
-                                                    className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                                                    onChange={(e) => handleCheckmarkCheck(e, key)}
-                                                    checked={JsonDataStore[key] ? JsonDataStore[key].ticked : false}
-                                                />
-                                            </label>
-                                            <strong className="mb-4">{key}:</strong>{" "}
-                                            {typeof JsonDataStore[key]["value"] !== "object"
-                                                ? JsonDataStore[key]["value"]
-                                                : JSON.stringify(JsonDataStore[key]["value"])}
-                                        </div>
-                                    );
-                                })}
-                            </>
-                        </ul>
-                        <div className="py-2"></div>
-                        {jsonText && signature && (
-                            <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
-                                {isLoading ? "loading..." : "Generate Proof"}
-                            </Button>
-                        )}
-                    </div>
+                    <div className="py-2"></div>
+                    <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
+                    <br />
+
+                    {jsonText && signature && (
+                        <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
+                            {isLoading ? "loading..." : "Generate Proof"}
+                        </Button>
+                    )}
                     {proofArtifacts && Object.keys(proofArtifacts).length !== 0 ? (
                         <div>
                             <div className="py-2"></div>
