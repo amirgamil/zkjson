@@ -56,16 +56,16 @@ export const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => 
 
 type AttributeQuery = string[];
 
-type JsonCircuitInput = { 
-	jsonProgram: Ascii[],
-	keys: Ascii[][][];
-	values: Ascii[][],
-	keysOffset: number[][][],
-	valuesOffset: number[][],
-	hashJsonProgram?: string,
-	pubKey?: string[],
-	R8?: string[],
-	S?: string[]
+type JsonCircuitInput = {
+    jsonProgram: Ascii[];
+    keys: Ascii[][][];
+    values: Ascii[][];
+    keysOffset: number[][][];
+    valuesOffset: number[][];
+    hashJsonProgram?: string;
+    pubKey?: string[];
+    R8?: string[];
+    S?: string[];
 };
 
 const ATTR_VAL_MAX_LENGTH = 10; // TODO: idk
@@ -124,28 +124,28 @@ function checkAttributes(obj: { [key: string]: any }, attrQueries: AttributeQuer
 }
 
 function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[]): Ascii[][] {
-	return attrQueries.map(attrQ => {
-		const value = getValue(obj, attrQ);
-		if (typeof(value) === "string") {
-			return padAscii(toAscii(`"${value}"`), ATTR_VAL_MAX_LENGTH);
-		} else if (typeof(value) === "number" || typeof(value) == "boolean") {
-			return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH); 
-		} else {
-			return [];
-		}
-	});
+    return attrQueries.map((attrQ) => {
+        const value: any = getValue(obj, attrQ);
+        if (typeof value === "string") {
+            return padAscii(toAscii(`"${value}"`), ATTR_VAL_MAX_LENGTH);
+        } else if (typeof value === "number" || typeof value == "boolean") {
+            return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH);
+        } else {
+            return [];
+        }
+    });
 }
 
 function getValue(obj: Object, attrQuery: AttributeQuery) {
-    return attrQuery.reduce((acc, c) => acc[c], obj);
+    return attrQuery.reduce((acc: Record<string, any>, c: string) => acc[c], obj);
 }
 
 export function preprocessJson(
-	obj: Object,
-	attrQueries: AttributeQuery[],
-	jsonProgramSize: number,
-	stackDepth: number,
-): JsonCircuitInput {
+    obj: Object,
+    attrQueries: AttributeQuery[],
+    jsonProgramSize: number,
+    stackDepth: number
+): JsonCircuitInput | null {
     if (!checkAttributes(obj, attrQueries)) {
         console.error("Attribute check failed!");
         return null;
@@ -154,7 +154,6 @@ export function preprocessJson(
     const jsonString = JSON.stringify(obj);
     const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
     const queryDepth = attrQueries[0].length;
-
 
     const attributes = padAscii2D(
         attrQueries.map((attrQ) =>
@@ -176,10 +175,10 @@ export function preprocessJson(
 
     // TODO: Undefined behavior if repeated keys¯\_(ツ)_/¯
     const values = extractValuesAscii(obj, attrQueries);
-    const valuesOffset: Ascii[][] = attrQueries.map((attrQ, i) => {
+    const valuesOffset: number[][] = attrQueries.map((attrQ, i) => {
         // end index of the key + :" (2 chars)
         const begin = keysOffset[i][queryDepth - 1][1] + 2;
-        const value = getValue(obj, attrQ);
+        const value: any = getValue(obj, attrQ);
 
         if (typeof value == "string") {
             const end = jsonString.indexOf('"', begin + 1);
@@ -193,11 +192,11 @@ export function preprocessJson(
                 }
                 end++;
             }
+            throw new Error("Invalid value type");
         } else if (typeof value == "boolean") {
             return [begin, begin + value.toString().length - 1];
         } else {
-            console.error("Unsupported value type found while calculating offsets!");
-            // return [begin, -1];
+            throw new Error("Invalid value type");
         }
     });
 

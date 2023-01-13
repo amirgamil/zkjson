@@ -19,7 +19,6 @@ import {
     preprocessJson,
     ProofArtifacts,
     toAscii,
-    preprocessJson,
 } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
@@ -155,6 +154,10 @@ export default function Home() {
         );
         // todo: refactor into function and select keys based on checkmarks
         let obj = preprocessJson(JSON.parse(jsonText), [["map", "a"]], 50, 3);
+        if (!obj) {
+            toast.error("Unexpected error");
+            return;
+        }
         // console.log(JSONStringifyCustom(signature));
         obj["hashJsonProgram"] = hash;
         obj["pubKey"] = signature["A"].map((item) => item.toString());
