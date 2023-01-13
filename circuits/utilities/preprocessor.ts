@@ -16,7 +16,7 @@ type AttributeQuery = string[];
 type JsonCircuitInput = { 
 	hashJsonProgram: string,
 	json: Ascii[],
-	attributes: Ascii[][][],
+	keys: Ascii[][][];
 	values: Ascii[][],
 	keysOffsets: number[][][],
 	valuesOffsets: number[][],
@@ -38,6 +38,18 @@ function padAscii(asciiArr: Ascii[], arrayLen: number): Ascii[] {
 		}
 		return asciiArr;
 	}
+}
+
+function padAscii2D(asciiArr: Ascii[][][], stackDepth: number): Ascii[][][] {
+	return asciiArr.map(arr => {
+		const innerLength = arr[0].length;
+		while (arr.length < stackDepth) {
+			let a = new Array();
+			for (let i=0; i<innerLength; i++) { a.push(0); }
+			arr.push(a);
+		}
+		return arr;
+	})
 }
 
 function checkAttributes(obj: {[key: string]: any}, attrQueries: AttributeQuery[]): boolean {
@@ -72,8 +84,8 @@ function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[]): Ascii[]
 		const value = getValue(obj, attrQ);
 		if (typeof(value) === "string") {
 			return padAscii(toAscii(`"${value}"`), ATTR_VAL_MAX_LENGTH);
-		} else if (typeof(value) === "number") {
-			return padAscii([value], ATTR_VAL_MAX_LENGTH); 
+		} else if (typeof(value) === "number" || typeof(value) == "boolean") {
+			return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH); 
 		}
 	});
 }
@@ -84,15 +96,6 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
 
 async function calculatePoseidon(json: Ascii[]): Promise<string> {
 	const poseidon = await buildPoseidon();
-
-	let numComponents = 1;
-	if (json.length > 16) {
-		const tmp = json.length - 17;
-		numComponents = 2 + tmp;
-		if (tmp % 15 !== 0) {
-			numComponents++;
-		}
-	}
 
 	let poseidonRes = poseidon(json.slice(0, 16));
 	let i = 16;
@@ -107,6 +110,7 @@ async function preprocessJson(
 	obj: Object,
 	attrQueries: AttributeQuery[],
 	jsonProgramSize: number,
+	stackDepth: number,
 ): Promise<JsonCircuitInput | null> {
 
 	if (!checkAttributes(obj, attrQueries)) {
@@ -118,18 +122,18 @@ async function preprocessJson(
 	const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
 	const queryDepth = attrQueries[0].length;
 
-	const attributes = attrQueries.map(attrQ =>
+	const attributes = padAscii2D(attrQueries.map(attrQ =>
 		attrQ.map(nestedAttr =>
 			padAscii(toAscii(`"${nestedAttr}"`), ATTR_VAL_MAX_LENGTH))
-	);
+	), stackDepth);
 
-	const keysOffsets = attrQueries.map(attrQ =>
+	const keysOffsets = padAscii2D(attrQueries.map(attrQ =>
 		attrQ.map(nestedAttr => {
 			const begin = jsonString.indexOf(`"${nestedAttr}"`);
 			const end = begin + nestedAttr.length + 1;
 			return [begin, end];
 		})
-	);
+	), stackDepth);
 
 	// TODO: Undefined behavior if repeated keys¯\_(ツ)_/¯
 	const values = extractValuesAscii(obj, attrQueries);
@@ -149,8 +153,10 @@ async function preprocessJson(
 					if (!(currChar >= '0' && currChar <= '9')) {
 						return [begin, end-1];
 					}
+					end++;
 				}
-				end++;
+			} else if (typeof(value) == 'boolean') {
+				return [begin, begin + value.toString().length - 1];
 			} else {
 				console.error("Unsupported value type found while calculating offsets!");
 				// return [begin, -1];
@@ -163,7 +169,7 @@ async function preprocessJson(
 	const result = {
 		hashJsonProgram,
 		json: jsonAscii,
-		attributes,
+		keys: attributes,
 		values,
 		keysOffsets,
 		valuesOffsets
@@ -203,7 +209,7 @@ function generateJsonCircuitConfig(
 }
 
 // let json = {"name":"foobar","value":123,"list":["a",1]} 
-let json = {"name":"foobar","value":123,"map":{"a":"1"}}
-preprocessJson(json, [["map", "a"]], 50).then(res =>
+let json = {"name":"foobar","value":123,"map":{"a":true}}
+preprocessJson(json, [["map", "a"]], 50, 3).then(res =>
 	console.dir(res, {depth: null}));
 
