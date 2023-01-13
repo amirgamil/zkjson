@@ -29,7 +29,11 @@ interface ProofArtifacts {
     proof: Object;
 }
 
-const Container = styled.main``;
+const Container = styled.main`
+    .viewProof {
+        text-decoration: underline !important;
+    }
+`;
 
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
@@ -186,40 +190,42 @@ export default function Home() {
                     ) : null}
                     <br />
 
-                    <ul>
-                        <>
-                            {Object.keys(JsonDataStore).map((key, index) => {
-                                return (
-                                    <div key={index}>
-                                        <label className="inline-flex items-center ml-6">
-                                            <input
-                                                type="checkbox"
-                                                className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                                                onChange={(e) => handleCheckmarkCheck(e, key)}
-                                                checked={JsonDataStore[key] ? JsonDataStore[key].ticked : false}
-                                            />
-                                        </label>
-                                        <strong className="mb-4">{key}:</strong>{" "}
-                                        {typeof JsonDataStore[key]["value"] !== "object"
-                                            ? JsonDataStore[key]["value"]
-                                            : JSON.stringify(JsonDataStore[key]["value"])}
-                                    </div>
-                                );
-                            })}
-                        </>
-                    </ul>
-                    <div className="py-2"></div>
-                    {jsonText && signature && (
-                        <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
-                            {isLoading ? "loading..." : "Generate Proof"}
-                        </Button>
-                    )}
+                    <div className="flex flex-col justify-center items-center">
+                        <ul>
+                            <>
+                                {Object.keys(JsonDataStore).map((key, index) => {
+                                    return (
+                                        <div key={index}>
+                                            <label className="inline-flex items-center ml-6">
+                                                <input
+                                                    type="checkbox"
+                                                    className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                                                    onChange={(e) => handleCheckmarkCheck(e, key)}
+                                                    checked={JsonDataStore[key] ? JsonDataStore[key].ticked : false}
+                                                />
+                                            </label>
+                                            <strong className="mb-4">{key}:</strong>{" "}
+                                            {typeof JsonDataStore[key]["value"] !== "object"
+                                                ? JsonDataStore[key]["value"]
+                                                : JSON.stringify(JsonDataStore[key]["value"])}
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        </ul>
+                        <div className="py-2"></div>
+                        {jsonText && signature && (
+                            <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
+                                {isLoading ? "loading..." : "Generate Proof"}
+                            </Button>
+                        )}
+                    </div>
                     {proofArtifacts && Object.keys(proofArtifacts).length !== 0 ? (
                         <div>
                             <div className="py-2"></div>
                             <div className="flex justify-center items-center text-center">
                                 <a
-                                    className="text-underline"
+                                    className="viewProof text-underline"
                                     target="_blank"
                                     href={"data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.proof)}
                                     download={"proof.json"}
