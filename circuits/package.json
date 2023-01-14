@@ -12,6 +12,10 @@
         "circom": "^0.5.46",
         "circomlib": "^2.0.5",
         "circomlibjs": "^0.1.7",
+        "localforage": "^1.10.0",
         "snarkjs": "^0.5.0"
+    },
+    "devDependencies": {
+        "@types/node": "^18.11.18"
     }
 }
