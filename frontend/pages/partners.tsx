@@ -87,12 +87,9 @@ export default function Partners() {
 
             const hash = circuitInputs.current.hash;
             const formattedJSON = circuitInputs.current.formattedJSON;
-            const obj = await preprocessJson(circuitInputs.current.jsonText, [["crushName"]], MAX_JSON_LENGTH, 3);
+            const obj = await preprocessJson(circuitInputs.current.jsonText, MAX_JSON_LENGTH);
             const finalInput = { ...sigParts, hashJsonProgram: hash, jsonProgram: formattedJSON, ...obj };
-
-            // console.log("check it: ", JSON.stringify(finalInput));
-            console.log("length: ", finalInput.msg.length);
-
+            console.log("final: ", JSON.stringify(finalInput));
             const worker = new Worker("./worker.js");
             worker.postMessage([finalInput, "./jsonFull_final.zkey"]);
 
@@ -125,7 +122,6 @@ export default function Partners() {
         circuitInputs.current = { ...extracted, hash };
     };
 
-    console.log(ed.utils.bytesToHex(ed.utils.randomPrivateKey()));
     useEffect(() => {
         async function checkIsRegistered() {
             const maybePrivKey = await localforage.getItem("zkattestorPrivKey");

@@ -7,7 +7,7 @@ export function isJSON(jsonText: any) {
     }
 }
 
-export const MAX_JSON_LENGTH = 50;
+export const MAX_JSON_LENGTH = 150;
 
 export function JSONStringifyCustom(val: any) {
     return JSON.stringify(
@@ -142,87 +142,83 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
     return attrQuery.reduce((acc: Record<string, any>, c: string) => acc[c], obj);
 }
 
-export function preprocessJson(
-    obj: Object,
-    jsonProgramSize: number,
-): JsonCircuitInput | null {
-
+export function preprocessJson(obj: Object, jsonProgramSize: number): JsonCircuitInput | null {
     const jsonString = JSON.stringify(obj);
-	const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
-	let stackDepths = [0];
-	for (let i = 1; i < jsonString.length; i++) {
-		if (jsonString[i] === "{") {
-			stackDepths.push(stackDepths[stackDepths.length-1] + 1);
-		} else if (jsonString[i] === "}") {
-			stackDepths.push(stackDepths[stackDepths.length-1] - 1);
-		} else {
-			stackDepths.push(stackDepths[stackDepths.length-1]);
-		}
-	}
+    const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
+    let stackDepths = [0];
+    for (let i = 1; i < jsonString.length; i++) {
+        if (jsonString[i] === "{") {
+            stackDepths.push(stackDepths[stackDepths.length - 1] + 1);
+        } else if (jsonString[i] === "}") {
+            stackDepths.push(stackDepths[stackDepths.length - 1] - 1);
+        } else {
+            stackDepths.push(stackDepths[stackDepths.length - 1]);
+        }
+    }
 
-	let stackDepth = Math.max(...stackDepths)+1;
+    let stackDepth = Math.max(...stackDepths) + 1;
 
-	let keyResults: number[][][] = [];
-	let keyOffsets: number[][][] = [];
-	let keys: string[][] = [];
-	let values: string[] = [];
-	let valueOffsets: number[][] = [];
-	for (let i = 0; i < stackDepth; i++) {
-		keyResults.push([]);
-	}
+    let keyResults: number[][][] = [];
+    let keyOffsets: number[][][] = [];
+    let keys: string[][] = [];
+    let values: string[] = [];
+    let valueOffsets: number[][] = [];
+    for (let i = 0; i < stackDepth; i++) {
+        keyResults.push([]);
+    }
 
-	let colonIndex = -1;
-	// check when things are in strings
-	while (jsonString.indexOf(":", colonIndex+1) !== -1) {
-		colonIndex = jsonString.indexOf(":", colonIndex+1);
-		let lastQuote = jsonString.lastIndexOf("\"", colonIndex);
-		let firstQuote = jsonString.lastIndexOf("\"", lastQuote-1);
-		let depth = stackDepths[colonIndex];
-		keyResults[depth].push([firstQuote, lastQuote]);
-		if (jsonString[colonIndex + 1] != "{") {
-			// look for comma or ending brace
-			let commaIndex = jsonString.indexOf(",", colonIndex);
-			let braceIndex = jsonString.indexOf("}", colonIndex);
-			let valueResult = [];
-			if (commaIndex > -1 && (commaIndex < braceIndex || braceIndex < 0)) {
-				valueResult.push(colonIndex+1);
-				valueResult.push(commaIndex-1);
-			} else if (braceIndex > -1 && (braceIndex < commaIndex || commaIndex < 0)) {
-				valueResult.push(colonIndex+1);
-				valueResult.push(braceIndex-1);
-			}
-			if (valueResult.length > 0) {
-				valueOffsets.push(valueResult);
-				values.push(jsonString.substring(valueResult[0], valueResult[1]+1));
-				let pathOffsets: number[][] = [];
-				let pathKeys: string[] = [];
-				for (let i = 0; i <= depth; i++) {
-					console.log("keyresults", keyResults);
-					let arr = keyResults[i];
-					pathOffsets.push(arr[arr.length-1]);
-					pathKeys.push(jsonString.substring(arr[arr.length-1][0], arr[arr.length-1][1]+1));
-				}
-				keyOffsets.push(pathOffsets);
-				keys.push(pathKeys);
-			}
-		}
-		colonIndex += 1;
-	}
-	let finalVals = values.map(str => padAscii(toAscii(str), 40));
-	// valueOffsets
-	let finalKeys = keys.map(strArr => {
-		let arr = strArr.map(str => padAscii(toAscii(str), 15));
-		while (arr.length < stackDepth) {
-			arr.push(new Array(15).fill(0));
-		}
-		return arr;
-	});
-	let finalKeyOffsets = keyOffsets.map(offsetArr => {
-		while (offsetArr.length < stackDepth) {
-			offsetArr.push([0, 0]);
-		}
-		return offsetArr;
-	});
+    let colonIndex = -1;
+    // check when things are in strings
+    while (jsonString.indexOf(":", colonIndex + 1) !== -1) {
+        colonIndex = jsonString.indexOf(":", colonIndex + 1);
+        let lastQuote = jsonString.lastIndexOf('"', colonIndex);
+        let firstQuote = jsonString.lastIndexOf('"', lastQuote - 1);
+        let depth = stackDepths[colonIndex];
+        keyResults[depth].push([firstQuote, lastQuote]);
+        if (jsonString[colonIndex + 1] != "{") {
+            // look for comma or ending brace
+            let commaIndex = jsonString.indexOf(",", colonIndex);
+            let braceIndex = jsonString.indexOf("}", colonIndex);
+            let valueResult = [];
+            if (commaIndex > -1 && (commaIndex < braceIndex || braceIndex < 0)) {
+                valueResult.push(colonIndex + 1);
+                valueResult.push(commaIndex - 1);
+            } else if (braceIndex > -1 && (braceIndex < commaIndex || commaIndex < 0)) {
+                valueResult.push(colonIndex + 1);
+                valueResult.push(braceIndex - 1);
+            }
+            if (valueResult.length > 0) {
+                valueOffsets.push(valueResult);
+                values.push(jsonString.substring(valueResult[0], valueResult[1] + 1));
+                let pathOffsets: number[][] = [];
+                let pathKeys: string[] = [];
+                for (let i = 0; i <= depth; i++) {
+                    console.log("keyresults", keyResults);
+                    let arr = keyResults[i];
+                    pathOffsets.push(arr[arr.length - 1]);
+                    pathKeys.push(jsonString.substring(arr[arr.length - 1][0], arr[arr.length - 1][1] + 1));
+                }
+                keyOffsets.push(pathOffsets);
+                keys.push(pathKeys);
+            }
+        }
+        colonIndex += 1;
+    }
+    let finalVals = values.map((str) => padAscii(toAscii(str), 40));
+    // valueOffsets
+    let finalKeys = keys.map((strArr) => {
+        let arr = strArr.map((str) => padAscii(toAscii(str), 15));
+        while (arr.length < stackDepth) {
+            arr.push(new Array(15).fill(0));
+        }
+        return arr;
+    });
+    let finalKeyOffsets = keyOffsets.map((offsetArr) => {
+        while (offsetArr.length < stackDepth) {
+            offsetArr.push([0, 0]);
+        }
+        return offsetArr;
+    });
 
     const result = {
         jsonProgram: jsonAscii,
