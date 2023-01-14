@@ -3,7 +3,7 @@ export type VerifyPayload = {
 };
 
 export interface EddsaSignature {
-    A: string[];
+    pubKey: string[];
     msg: string[];
     R8: string[];
     S: string[];

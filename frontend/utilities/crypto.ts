@@ -51,7 +51,7 @@ export const extractPartsFromSignature = (pSignature: Uint8Array, msg: Uint8Arra
     const aBits = buffer2bits(pubKey);
 
     return {
-        A: aBits.map((el) => el.toString()),
+        pubKey: aBits.map((el) => el.toString()),
         R8: r8Bits.map((el) => el.toString()),
         S: sBits.map((el) => el.toString()),
         msg: msgBits.map((el) => el.toString()),

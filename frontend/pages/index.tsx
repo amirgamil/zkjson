@@ -93,15 +93,14 @@ export default function Home() {
                 const obj = await preprocessJson(JSON.parse(jsonText), [["map", "a"]], MAX_JSON_LENGTH, 3);
 
                 const worker = new Worker("./worker.js");
-
                 if (
                     obj &&
                     typeof hash == "string" &&
                     signature !== undefined &&
-                    "A" in signature &&
+                    "pubKey" in signature &&
                     "R8" in signature &&
                     "S" in signature &&
-                    Array.isArray(signature["A"]) &&
+                    Array.isArray(signature["pubKey"]) &&
                     Array.isArray(signature["R8"]) &&
                     Array.isArray(signature["S"])
                 ) {
@@ -114,6 +113,7 @@ export default function Home() {
                     };
                     worker.postMessage([hardCodedInput, "./jsonFull_final.zkey"]);
                 } else {
+                    setIsLoading(false);
                     toast.error(
                         "Invalid proving request. Please ensure that your JSON includes the required attributes"
                     );

@@ -84,13 +84,18 @@ export default function Partners() {
                 strHashToBuffer(circuitInputs.current.hash),
                 circuitInputs.current.servicePubkey
             );
+
             const hash = circuitInputs.current.hash;
             const formattedJSON = circuitInputs.current.formattedJSON;
-            const obj = await preprocessJson(circuitInputs.current.jsonText, [["map", "a"]], MAX_JSON_LENGTH, 3);
-            const finalInput = { ...sigParts, hash, jsonProgram: formattedJSON, ...obj };
+            const obj = await preprocessJson(circuitInputs.current.jsonText, [["crushName"]], MAX_JSON_LENGTH, 3);
+            const finalInput = { ...sigParts, hashJsonProgram: hash, jsonProgram: formattedJSON, ...obj };
+
+            // console.log("check it: ", JSON.stringify(finalInput));
+            console.log("length: ", finalInput.msg.length);
 
             const worker = new Worker("./worker.js");
             worker.postMessage([finalInput, "./jsonFull_final.zkey"]);
+
             worker.onmessage = async function (e) {
                 const { proof, publicSignals } = e.data;
                 setProofArtifacts({ proof, publicSignals });
@@ -98,7 +103,10 @@ export default function Partners() {
                 toast.success("Generated proof!");
                 setIsLoading(false);
             };
+
+            setIsLoading(false);
         } catch (ex) {
+            setIsLoading(false);
             console.error(ex);
             toast.error("Something went wrong :(");
         }
@@ -145,6 +153,7 @@ export default function Partners() {
                 toast.error("Failed to verify proof");
             }
         } catch (ex) {
+            setIsLoading(false);
             toast.error("Failed to verify proof");
         }
     };
