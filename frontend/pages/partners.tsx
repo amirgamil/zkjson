@@ -107,6 +107,7 @@ export default function Partners() {
 
             const worker = new Worker("./worker.js");
             worker.postMessage([finalInput, "./jsonFull_final.zkey"]);
+
             worker.onmessage = async function (e) {
                 const { proof, publicSignals, error } = e.data;
                 if (error) {
@@ -118,6 +119,8 @@ export default function Partners() {
                     setIsLoading(false);
                 }
             };
+
+            setIsLoading(false);
         } catch (ex) {
             setIsLoading(false);
             if (ex instanceof Error && ex.message.startsWith("Unable to generate proof! Missing")) {
@@ -170,6 +173,7 @@ export default function Partners() {
                 toast.error("Failed to verify proof");
             }
         } catch (ex) {
+            setIsLoading(false);
             toast.error("Failed to verify proof");
         }
     };
