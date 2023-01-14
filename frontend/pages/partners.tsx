@@ -243,6 +243,17 @@ export default function Partners() {
                                     View Proof
                                 </a>
                             </div>
+                            <div className="flex underlineContainer justify-center items-center text-center">
+                                <a
+                                    className="viewProof text-underline"
+                                    target="_blank"
+                                    href={"data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.publicSignals)}
+                                    download={"publicParams.json"}
+                                    rel="noreferrer"
+                                >
+                                    View Public Info
+                                </a>
+                            </div>
                             <div className="py-2"></div>
                             <Button backgroundColor="black" color="white" onClickHandler={verifyProof}>
                                 {isLoading ? "loading..." : "Verify Proof"}
