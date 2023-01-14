@@ -36,6 +36,7 @@ import {
 } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
+import ReactLoading from "react-loading";
 
 const Container = styled.main`
     .viewProof {
@@ -49,7 +50,7 @@ const Container = styled.main`
 
 export default function Partners() {
     const [jsonText, setJsonText] = useState<string>("");
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<number | undefined>(undefined);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
@@ -80,7 +81,7 @@ export default function Partners() {
                 toast.error("Invalid JSON");
                 return;
             }
-            setIsLoading(true);
+            setIsLoading(1);
             checkJsonSchema(JsonDataStore);
             // hardCoded.jsonProgram.map(BigInt);
             const sigParts = extractPartsFromSignature(
@@ -93,16 +94,20 @@ export default function Partners() {
             for (var key of REQUIRED_FIELDS) {
                 var node = getRecursiveKeyInDataStore(key, JsonDataStore);
                 if (node !== null && !isJSONStore(node)) {
-                    revealedFields.push(
-                        node["ticked"] ? 1: 0
-                    );
+                    revealedFields.push(node["ticked"] ? 1 : 0);
                 }
             }
 
             const hash = circuitInputs.current.hash;
             const formattedJSON = circuitInputs.current.formattedJSON;
             const obj = await preprocessJson(circuitInputs.current.jsonText, 150);
-            const finalInput = { ...sigParts, hashJsonProgram: hash, jsonProgram: formattedJSON, ...obj, inputReveal: revealedFields, };
+            const finalInput = {
+                ...sigParts,
+                hashJsonProgram: hash,
+                jsonProgram: formattedJSON,
+                ...obj,
+                inputReveal: revealedFields,
+            };
             console.log(JSON.stringify(finalInput));
 
             const worker = new Worker("./worker.js");
@@ -116,13 +121,11 @@ export default function Partners() {
                     setProofArtifacts({ proof, publicSignals });
                     console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
                     toast.success("Generated proof!");
-                    setIsLoading(false);
                 }
+                setIsLoading(undefined);
             };
-
-            setIsLoading(false);
         } catch (ex) {
-            setIsLoading(false);
+            setIsLoading(undefined);
             if (ex instanceof Error && ex.message.startsWith("Unable to generate proof! Missing")) {
                 toast.error(ex.message);
                 return;
@@ -152,12 +155,12 @@ export default function Partners() {
             if (maybePrivKey && maybePubKey) {
                 setHasKeypair(true);
             } else {
-                setIsLoading(true);
+                setIsLoading(0);
                 const privKey = ed.utils.randomPrivateKey();
                 const publicKey = await ed.getPublicKey(privKey);
                 await localforage.setItem("zkattestorPrivKey", privKey);
                 await localforage.setItem("zkattestorPubKey", publicKey);
-                setIsLoading(false);
+                setIsLoading(undefined);
             }
         }
         checkIsRegistered();
@@ -165,18 +168,21 @@ export default function Partners() {
 
     const verifyProof = async () => {
         try {
+            setIsLoading(2);
             const resultVerified = await axios.post<VerifyPayload>("/api/verify", { ...proofArtifacts });
             if (resultVerified.data.isValidProof) {
                 toast.success("Successfully verified proof!");
             } else {
                 toast.error("Failed to verify proof");
             }
+            setIsLoading(undefined);
         } catch (ex) {
-            setIsLoading(false);
+            setIsLoading(undefined);
             toast.error("Failed to verify proof");
         }
     };
 
+    console.log("loading: ", isLoading);
     return (
         <>
             <Head>
@@ -196,7 +202,7 @@ export default function Partners() {
                     </div>
                 </div>
 
-                <p className="mb-2">Select JSON elements to reveal in ZK-proof</p>
+                <p className="mb-2">Paste your JSON then select JSON elements to reveal in ZK-proof</p>
                 <div className="py-2"></div>
                 <div style={{ width: "800px" }} className="flex flex-col justify-center items-center">
                     <Textarea
@@ -223,9 +229,15 @@ export default function Partners() {
                     <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
                     <br />
 
-                    <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
-                        {isLoading ? "loading..." : "Generate Proof"}
-                    </Button>
+                    {Object.keys(JsonDataStore).length > 0 ? (
+                        <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
+                            {isLoading === 1 ? (
+                                <ReactLoading type={"spin"} color={"white"} height={20} width={20} />
+                            ) : (
+                                "Generate Proof"
+                            )}
+                        </Button>
+                    ) : null}
 
                     {proofArtifacts && Object.keys(proofArtifacts).length !== 0 ? (
                         <div>
@@ -243,7 +255,11 @@ export default function Partners() {
                             </div>
                             <div className="py-2"></div>
                             <Button backgroundColor="black" color="white" onClickHandler={verifyProof}>
-                                {isLoading ? "loading..." : "Verify Proof"}
+                                {isLoading === 2 ? (
+                                    <ReactLoading type={"spin"} color={"white"} height={20} width={20} />
+                                ) : (
+                                    "Verify Proof"
+                                )}
                             </Button>
                         </div>
                     ) : null}

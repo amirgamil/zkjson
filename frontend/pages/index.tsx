@@ -32,9 +32,7 @@ import { EddsaSignature, VerifyPayload } from "../utilities/types";
 import { calculatePoseidon, generateEddsaSignature, hardCodedInput, strHashToBuffer } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
-
-import Editor, { DiffEditor, useMonaco, loader } from "@monaco-editor/react";
-import { json } from "stream/consumers";
+import ReactLoading from "react-loading";
 
 const Container = styled.main`
     .viewProof {
@@ -47,14 +45,14 @@ const Container = styled.main`
 `;
 
 interface Signature {
-    "R8": string[],
-    "S": string[],
-    "pubKey": string[],
+    R8: string[];
+    S: string[];
+    pubKey: string[];
 }
 
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<number | undefined>(undefined);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
     const [signature, setSignature] = useState<Signature | undefined>(undefined);
     const [hash, setHash] = useState<string | undefined>(undefined);
@@ -98,9 +96,9 @@ export default function Home() {
                 toast.error("Invalid JSON");
                 return;
             }
-            setIsLoading(true);
+            setIsLoading(1);
 
-            checkJsonSchema(JsonDataStore) 
+            checkJsonSchema(JsonDataStore);
             if (jsonText) {
                 const obj = preprocessJson(JSON.parse(jsonText), 150);
                 const worker = new Worker("./worker.js");
@@ -110,16 +108,10 @@ export default function Home() {
                 for (var key of REQUIRED_FIELDS) {
                     var node = getRecursiveKeyInDataStore(key, JsonDataStore);
                     if (node !== null && !isJSONStore(node)) {
-                        revealedFields.push(
-                            node["ticked"] ? 1: 0
-                        );
+                        revealedFields.push(node["ticked"] ? 1 : 0);
                     }
                 }
-                if (
-                    obj &&
-                    typeof hash == "string" &&
-                    signature !== undefined
-                ) {
+                if (obj && typeof hash == "string" && signature !== undefined) {
                     let objFull: FullJsonCircuitInput = {
                         ...obj,
                         hashJsonProgram: hash,
@@ -132,7 +124,7 @@ export default function Home() {
                     console.log(JSON.stringify(objFull));
                     worker.postMessage([objFull, "./jsonFull_final.zkey"]);
                 } else {
-                    setIsLoading(false);
+                    setIsLoading(undefined);
                     toast.error(
                         "Invalid proving request. Please ensure that your JSON includes the required attributes"
                     );
@@ -141,19 +133,19 @@ export default function Home() {
 
                 worker.onmessage = async function (e) {
                     const { proof, publicSignals, error } = e.data;
+                    setIsLoading(undefined);
                     if (error) {
                         toast.error("Could not generate proof, invalid signature");
                     } else {
-                    setProofArtifacts({ proof, publicSignals });
+                        setProofArtifacts({ proof, publicSignals });
 
-                    console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
-                    toast.success("Generated proof!");
-                    setIsLoading(false);
+                        console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
+                        toast.success("Generated proof!");
                     }
                 };
             }
         } catch (ex) {
-            setIsLoading(false);
+            setIsLoading(undefined);
             if (ex instanceof Error && ex.message.startsWith("Unable to generate proof! Missing")) {
                 toast.error(ex.message);
                 return;
@@ -171,12 +163,12 @@ export default function Home() {
             if (maybePrivKey && maybePubKey) {
                 setHasKeypair(true);
             } else {
-                setIsLoading(true);
+                setIsLoading(0);
                 const privKey = ed.utils.randomPrivateKey();
                 const publicKey = await ed.getPublicKey(privKey);
                 await localforage.setItem("zkattestorPrivKey", privKey);
                 await localforage.setItem("zkattestorPubKey", publicKey);
-                setIsLoading(false);
+                setIsLoading(undefined);
             }
         }
         checkIsRegistered();
@@ -214,13 +206,16 @@ export default function Home() {
 
     const verifyProof = async () => {
         try {
+            setIsLoading(2);
             const resultVerified = await axios.post<VerifyPayload>("/api/verify", { ...proofArtifacts });
             if (resultVerified.data.isValidProof) {
                 toast.success("Successfully verified proof!");
             } else {
                 toast.error("Failed to verify proof");
             }
+            setIsLoading(undefined);
         } catch (ex) {
+            setIsLoading(undefined);
             toast.error("Failed to verify proof");
         }
     };
@@ -271,7 +266,7 @@ export default function Home() {
                                     }
                                 }}
                             /> */}
-                            <Textarea 
+                            <Textarea
                                 placeholder={"Paste your JSON string"}
                                 value={jsonText}
                                 onChangeHandler={(newVal: string) => {
@@ -295,18 +290,26 @@ export default function Home() {
                     <br />
 
                     <div className="py-2"></div>
-                    { Object.keys(JsonDataStore).length != 0 && 
+                    {Object.keys(JsonDataStore).length != 0 && (
                         <div className="font-mono">
                             {"{"}
-                            <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
+                            <Card
+                                dataStore={JsonDataStore}
+                                setKeyInDataStore={setRecursiveKeyInDataStore}
+                                keys={[]}
+                            ></Card>
                             {"}"}
                         </div>
-                    }
+                    )}
                     <br />
 
                     {jsonText && signature && (
                         <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
-                            {isLoading ? "loading..." : "Generate Proof"}
+                            {isLoading === 1 ? (
+                                <ReactLoading type={"spin"} color={"white"} height={20} width={20} />
+                            ) : (
+                                "Generate Proof"
+                            )}
                         </Button>
                     )}
                     {proofArtifacts && Object.keys(proofArtifacts).length !== 0 ? (
@@ -325,7 +328,7 @@ export default function Home() {
                             </div>
                             <div className="py-2"></div>
                             <Button backgroundColor="black" color="white" onClickHandler={verifyProof}>
-                                {isLoading ? "loading..." : "Verify Proof"}
+                                {isLoading === 2 ? "loading..." : "Verify Proof"}
                             </Button>
                         </div>
                     ) : null}
