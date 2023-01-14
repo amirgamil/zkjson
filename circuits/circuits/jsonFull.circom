@@ -9,29 +9,31 @@ include "./json.circom";
 include "./charType.circom";
 
 // @jsonProgramSize = large constant for max size json
+// @jsonProgramSize = large constant for max size json
 template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriTypes, queryDepths) {
     // string of all the json
     
     var jsonProgramSize = 50;
     var jsonProgramSizeBits = 400;
+    var maxValueSize = 40;
     
     signal input pubKey[256];
     signal hashbits[254];
     signal input R8[256];
     signal input S[256];
 
-
+    signal input inputReveal[numKeys];
 
     signal input jsonProgram[jsonProgramSize];
     signal input hashJsonProgram;
-    signal input values[numKeys][10];
+    signal input values[numKeys][maxValueSize];
     signal input keys[numKeys][stackDepth][10];
 
     signal input keysOffset[numKeys][stackDepth][2];
 
     component mAnd[jsonProgramSize][numKeys];
      // verify json hashes to provided hash
-    // component poseidon = PoseidonLarge(jsonProgramSize);
+    component poseidon = PoseidonLarge(jsonProgramSize);
     
     signal input valuesOffset[numKeys][2];
     signal output out;
@@ -115,7 +117,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     // state 15: fal
     // state 16: fals
     for (var i = 0; i < jsonProgramSize; i++) {
-        // poseidon.in[i] <== jsonProgram[i];
+        poseidon.in[i] <== jsonProgram[i];
         charTypes[i] = getCharType();
 
         charTypes[i].in <== jsonProgram[i];
@@ -207,8 +209,8 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
 
         for (var j = 0; j < 2; j++) {
           extra_intermediates[i][j] <== jsonStack[i][0][j] * notZeroOrBrackets;
-          more_intermediates[i][stackDepth - 1][0][j] <== jsonStack[i][stackDepth - 1][0] * (1 - isClosingBracket);
-          jsonStack[i + 1][stackDepth - 1][j] <== more_intermediates[i][stackDepth - 1][0][j] + jsonStack[i][stackDepth - 2][0] * charTypes[i].out[1];
+          more_intermediates[i][stackDepth - 1][0][j] <== jsonStack[i][stackDepth - 1][j] * (1 - isClosingBracket);
+          jsonStack[i + 1][stackDepth - 1][j] <== more_intermediates[i][stackDepth - 1][0][j] + jsonStack[i][stackDepth - 2][j] * charTypes[i].out[1];
         }
         jsonStack[i + 1][0][0] <== jsonStack[i][1][0] * isClosingBracket + extra_intermediates[i][0] + charTypes[i].out[1];
         jsonStack[i + 1][0][1] <== jsonStack[i][1][1] * isClosingBracket + extra_intermediates[i][1] + charTypes[i].out[3];
@@ -335,16 +337,19 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     component valueMatchesNumbers[numKeys];
     component valueMatchesStrings[numKeys];
     component valueMatchesList[numKeys];
+
     for (var i = 0; i < numKeys; i++) {
       // If numbers
       if (attriTypes[attrExtractingIndices[i]] != 1) {
-          valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, 10);
-          for (var attIndex = 0; attIndex < 10; attIndex++) {
-              valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
-          }
-          valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
-          valueMatchesStrings[i].JSON <== jsonProgram;
+        valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, maxValueSize);
+        for (var attIndex = 0; attIndex < maxValueSize; attIndex++) {
+          valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
+        }
+        valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
+        valueMatchesStrings[i].JSON <== jsonProgram;
+        valueMatchesStrings[i].on <== inputReveal[i];
       }
+
       // If strings
       else if (attriTypes[attrExtractingIndices[i]] == 1) {
           valueMatchesNumbers[i] = NumberValueCompare(jsonProgramSize);
@@ -360,7 +365,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     }
    
     // assert hash is the same as what is passed in (including trailing 0s)
-    // poseidon.out === hashJsonProgram;
+    poseidon.out === hashJsonProgram;
 
     component finalCheck = IsEqual();
     finalCheck.in[0] <== stackPtr[jsonProgramSize - 1];
@@ -368,7 +373,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     out <== finalCheck.out * (states[jsonProgramSize][4] + states[jsonProgramSize][8]);
 }
 
-component main { public [ jsonProgram, keysOffset, pubKey, R8, S ] } = JsonFull(3, 1, [[5, 3]], [0], [2], [2]);
+component main { public [ jsonProgram, keysOffset, pubKey, R8, S ] } = JsonFull(2, 1, [[5, 3]], [0], [2], [2]);
 
 // {"name":"foobar","value":123,"map":{"a":true}}
 
@@ -376,7 +381,8 @@ component main { public [ jsonProgram, keysOffset, pubKey, R8, S ] } = JsonFull(
   "hashJsonProgram": "1078902799906427895065744095725393469743232200640180720201388375607563017615",
 	"jsonProgram": [123, 34, 110, 97, 109, 101, 34, 58, 34, 102, 111, 111, 98, 97, 114, 34, 44, 34, 118, 97, 108, 117, 101, 34, 58, 49, 50, 51, 44, 34, 109, 97, 112, 34, 58, 123, 34, 97, 34, 58, 116, 114, 117, 101, 125, 125, 0, 0, 0, 0],
 	"keys": [[[34, 109, 97, 112, 34, 0, 0, 0, 0, 0], [34, 97, 34, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],
-	"values": [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0]],
+	"values": [[116, 114, 117, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+  "inputReveal":[0],
 	"keysOffset": [[[29, 33], [36, 38], [0, 0]]],
 	"valuesOffset": [[40, 43]],
   "pubKey":["0","1","1","1","0","1","0","1","0","1","1","0","1","0","1","0","1","0","0","0","1","1","1","1","0","0","1","0","0","0","0","1","1","1","1","0","1","1","1","0","0","0","1","0","1","1","0","0","1","1","0","0","1","0","0","0","0","0","1","0","0","1","1","0","1","1","0","0","1","0","0","1","0","0","0","0","0","1","1","0","0","1","1","0","1","0","1","0","0","1","1","0","0","0","0","0","0","0","1","0","0","1","0","0","1","0","0","1","0","1","0","0","1","0","1","0","1","0","0","0","0","0","1","0","0","1","1","0","0","1","1","1","1","0","0","1","1","1","0","0","1","0","1","1","1","1","0","1","0","1","0","1","1","0","1","1","1","0","1","1","1","0","0","0","0","1","1","1","0","0","0","1","1","0","0","1","1","1","0","1","1","0","0","1","1","0","1","0","1","1","1","0","0","0","1","0","0","0","0","0","1","1","0","0","1","1","0","1","1","0","0","1","0","0","0","1","0","0","0","1","0","0","1","1","0","1","0","0","0","1","1","0","0","1","0","0","1","0","1","0","1","0","0","0","1","0","0","1","0","1","0","1","0","1","0","1"],
