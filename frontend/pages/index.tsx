@@ -5,8 +5,6 @@ import React, { useEffect, useState } from "react";
 import { Button } from "../components/button";
 import localforage from "localforage";
 import * as ed from "@noble/ed25519";
-import * as ethers from "ethers";
-import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
 import {
@@ -14,7 +12,6 @@ import {
     Ascii,
     isJSON,
     isJSONStore,
-    JSONStringifyCustom,
     JSON_EL,
     JSON_STORE,
     MAX_JSON_LENGTH,
@@ -28,8 +25,8 @@ import {
 } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
-import { EddsaSignature, VerifyPayload } from "../utilities/types";
-import { calculatePoseidon, generateEddsaSignature, hardCodedInput, strHashToBuffer } from "../utilities/crypto";
+import { VerifyPayload } from "../utilities/types";
+import { calculatePoseidon, generateEddsaSignature, strHashToBuffer } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
 import ReactLoading from "react-loading";
