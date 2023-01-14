@@ -37,6 +37,8 @@ import {
 import { Card } from "../components/card";
 import Link from "next/link";
 
+import JSConfetti from 'js-confetti'
+
 const Container = styled.main`
     .viewProof {
         text-decoration: underline !important;
@@ -54,6 +56,7 @@ export default function Partners() {
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
+    const [confetti, setConfetti] = useState<any>(undefined);
 
     const circuitInputs = useRef<ExtractedJSONSignature & { hash: string }>();
 
@@ -165,11 +168,21 @@ export default function Partners() {
         checkIsRegistered();
     }, []);
 
+    useEffect(() => {
+        setConfetti(new JSConfetti());
+    }, []);
+
     const verifyProof = async () => {
         try {
             const resultVerified = await axios.post<VerifyPayload>("/api/verify", { ...proofArtifacts });
             if (resultVerified.data.isValidProof) {
                 toast.success("Successfully verified proof!");
+                confetti.addConfetti(
+                    {
+                        confettiRadius: 50,
+                        emojis: ['😘']
+                    }
+                ).then((_: any) => confetti.clearCanvas());
             } else {
                 toast.error("Failed to verify proof");
             }
