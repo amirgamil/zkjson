@@ -9,11 +9,28 @@ import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
-import { createJson, isJSON, isJSONStore, JSON_EL, JSON_STORE, ProofArtifacts, toAscii } from "../utilities/json";
+import {
+    createJson,
+    isJSON,
+    isJSONStore,
+    JSON_EL,
+    JSON_STORE,
+    MAX_JSON_LENGTH,
+    preprocessJson,
+    ProofArtifacts,
+    toAscii,
+} from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
-import { VerifyPayload } from "../utilities/types";
-import { calculatePoseidon, extractSignatureInputs, generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
+import { ExtractedJSONSignature, VerifyPayload } from "../utilities/types";
+import {
+    calculatePoseidon,
+    extractPartsFromSignature,
+    extractSignatureInputs,
+    generateEddsaSignature,
+    hardCodedInput,
+    strHashToBuffer,
+} from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
 
@@ -31,10 +48,11 @@ export default function Partners() {
     const [jsonText, setJsonText] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
-    const [signature, setSignature] = useState<Object | undefined>(undefined);
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
+
+    const circuitInputs = useRef<ExtractedJSONSignature & { hash: string }>();
 
     const setRecursiveKeyInDataStore = (keys: string[], state: boolean) => {
         let newJson = { ...JsonDataStore };
@@ -55,15 +73,24 @@ export default function Partners() {
 
     const generateProof = async () => {
         try {
-            if (!isJSON(jsonText)) {
+            if (!isJSON(jsonText) || !circuitInputs.current) {
                 toast.error("Invalid JSON");
                 return;
             }
             setIsLoading(true);
             // hardCoded.jsonProgram.map(BigInt);
+            const sigParts = extractPartsFromSignature(
+                circuitInputs.current.packedSignature,
+                strHashToBuffer(circuitInputs.current.hash),
+                circuitInputs.current.servicePubkey
+            );
+            const hash = circuitInputs.current.hash;
+            const formattedJSON = circuitInputs.current.formattedJSON;
+            const obj = await preprocessJson(circuitInputs.current.jsonText, [["map", "a"]], MAX_JSON_LENGTH, 3);
+            const finalInput = { ...sigParts, hash, jsonProgram: formattedJSON, ...obj };
 
             const worker = new Worker("./worker.js");
-            worker.postMessage([hardCodedInput, "./jsonFull_final.zkey"]);
+            worker.postMessage([finalInput, "./jsonFull_final.zkey"]);
             worker.onmessage = async function (e) {
                 const { proof, publicSignals } = e.data;
                 setProofArtifacts({ proof, publicSignals });
@@ -80,19 +107,14 @@ export default function Partners() {
     const generateJSON = async () => {
         const extracted = extractSignatureInputs(jsonText);
         let newJsonDataStore: JSON_STORE = {};
-        let parsedJson = JSON.parse(extracted.jsonText);
+        let parsedJson = extracted.jsonText;
 
         createJson(parsedJson, newJsonDataStore);
         setJsonDataStore(newJsonDataStore);
 
         let hash = await calculatePoseidon(toAscii(extracted.formattedJSON));
-        let hashValue = BigInt(hash);
-        let hashArr = [];
 
-        for (let i = 0; i < 32; i++) {
-            hashArr.push(Number(hashValue % BigInt(256)));
-            hashValue = hashValue / BigInt(256);
-        }
+        circuitInputs.current = { ...extracted, hash };
     };
 
     console.log(ed.utils.bytesToHex(ed.utils.randomPrivateKey()));
@@ -169,13 +191,13 @@ export default function Partners() {
                     </Button>
                     <div className="py-4"></div>
 
-                    <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
-                        {isLoading ? "loading..." : "Generate Proof"}
-                    </Button>
-
                     <div className="py-2"></div>
                     <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
                     <br />
+
+                    <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
+                        {isLoading ? "loading..." : "Generate Proof"}
+                    </Button>
 
                     {proofArtifacts && Object.keys(proofArtifacts).length !== 0 ? (
                         <div>

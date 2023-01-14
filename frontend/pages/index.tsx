@@ -1,7 +1,7 @@
 import Head from "next/head";
 import styles from "../styles/Home.module.css";
 import { Textarea } from "../components/textarea";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "../components/button";
 import localforage from "localforage";
 import * as ed from "@noble/ed25519";
@@ -26,7 +26,7 @@ import {
 import styled from "styled-components";
 import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
-import { calculatePoseidon, generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
+import { calculatePoseidon, generateEddsaSignature, hardCodedInput, strHashToBuffer } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
 
@@ -90,7 +90,7 @@ export default function Home() {
 
             if (jsonText) {
                 console.log(formattedJSON);
-                const obj = await preprocessJson(JSON.parse(jsonText), [["map", "a"]], 50, 3);
+                const obj = await preprocessJson(JSON.parse(jsonText), [["map", "a"]], MAX_JSON_LENGTH, 3);
 
                 const worker = new Worker("./worker.js");
 
@@ -108,9 +108,9 @@ export default function Home() {
                     let objFull: FullJsonCircuitInput = {
                         ...obj,
                         hashJsonProgram: hash,
-                        pubKey: signature["A"].map((item) => item.toString()),
-                        R8: signature["R8"].map((item) => item.toString()),
-                        S: signature["S"].map((item) => item.toString()),
+                        pubKey: signature["A"],
+                        R8: signature["R8"],
+                        S: signature["S"],
                     };
                     worker.postMessage([hardCodedInput, "./jsonFull_final.zkey"]);
                 } else {
@@ -172,18 +172,12 @@ export default function Home() {
         console.log("formatted: ", newFormattedJSON.length, jsonText.length);
 
         let hash = await calculatePoseidon(toAscii(newFormattedJSON));
-        console.log("hash: ", hash);
-        let hashValue = BigInt(hash);
-        let hashArr = [];
-        for (let i = 0; i < 32; i++) {
-            hashArr.push(Number(hashValue % BigInt(256)));
-            hashValue = hashValue / BigInt(256);
-        }
+
         // const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
         const signature = await generateEddsaSignature(
             privateKey as Uint8Array,
             // ethers.utils.toUtf8Bytes(newFormattedJSON)
-            Uint8Array.from(hashArr)
+            strHashToBuffer(hash)
         );
 
         setHash(hash);

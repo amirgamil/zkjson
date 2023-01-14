@@ -42,12 +42,28 @@ const convertDictToBuffer = (dict: Record<string, number>): Uint8Array => {
     return new Uint8Array(arr);
 };
 
+export const finalizeCircuitInputs = (obj: any, jsonText: string) => {};
+
+export const extractPartsFromSignature = (pSignature: Uint8Array, msg: Uint8Array, pubKey: Uint8Array) => {
+    const msgBits = buffer2bits(msg);
+    const r8Bits = buffer2bits(pSignature.slice(0, 32));
+    const sBits = buffer2bits(pSignature.slice(32, 64));
+    const aBits = buffer2bits(pubKey);
+
+    return {
+        A: aBits.map((el) => el.toString()),
+        R8: r8Bits.map((el) => el.toString()),
+        S: sBits.map((el) => el.toString()),
+        msg: msgBits.map((el) => el.toString()),
+    };
+};
+
 //extracts the signature and the json from a trusted API that signs requests
 export const extractSignatureInputs = (input: string): ExtractedJSONSignature => {
     const jsonSignature = JSON.parse(input);
     const packedSignature = convertDictToBuffer(jsonSignature.signature);
-    const servicePubkey = convertDictToBuffer(jsonSignature.pubkey);
-    const newFormattedJSON = padJSONString(JSON.stringify(JSON.parse(jsonSignature.json)), MAX_JSON_LENGTH);
+    const servicePubkey = convertDictToBuffer(jsonSignature.servicePubkey);
+    const newFormattedJSON = padJSONString(JSON.stringify(jsonSignature.json), MAX_JSON_LENGTH);
     return { packedSignature, servicePubkey, jsonText: jsonSignature.json, formattedJSON: newFormattedJSON };
 };
 
@@ -63,13 +79,17 @@ export const generateEddsaSignature = async (privateKey: Uint8Array, msg: Uint8A
 
     const pSignature = eddsa.packSignature(signature);
 
-    const msgBits = buffer2bits(msg);
-    const r8Bits = buffer2bits(pSignature.slice(0, 32));
-    const sBits = buffer2bits(pSignature.slice(32, 64));
-    const aBits = buffer2bits(pPubKey);
-    console.log("length: ", msgBits.length);
+    return extractPartsFromSignature(pSignature, msg, pPubKey);
+};
 
-    return { A: aBits, R8: r8Bits, S: sBits, msg: msgBits };
+export const strHashToBuffer = (hash: string) => {
+    let hashValue = BigInt(hash);
+    let hashArr = [];
+    for (let i = 0; i < 32; i++) {
+        hashArr.push(Number(hashValue % BigInt(256)));
+        hashValue = hashValue / BigInt(256);
+    }
+    return Uint8Array.from(hashArr);
 };
 
 export const hardCodedInput = {

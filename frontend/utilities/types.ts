@@ -3,10 +3,10 @@ export type VerifyPayload = {
 };
 
 export interface EddsaSignature {
-    A: BigInt[];
-    msg: BigInt[];
-    R8: BigInt[];
-    S: BigInt[];
+    A: string[];
+    msg: string[];
+    R8: string[];
+    S: string[];
 }
 
 export interface ExtractedJSONSignature {
