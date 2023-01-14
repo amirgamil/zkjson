@@ -39,6 +39,7 @@ import Link from "next/link";
 import ReactLoading from "react-loading";
 
 import JSConfetti from "js-confetti";
+import { producePP } from "../utilities/producePP";
 
 const Container = styled.main`
     .viewProof {
@@ -271,9 +272,7 @@ export default function Partners() {
                                 <a
                                     className="viewProof text-underline"
                                     target="_blank"
-                                    href={
-                                        "data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.publicSignals)
-                                    }
+                                    href={"data:text/json;charset=utf-8," + JSON.stringify(producePP(proofArtifacts.publicSignals))}
                                     download={"publicParams.json"}
                                     rel="noreferrer"
                                 >

@@ -110,6 +110,7 @@ export default function Home() {
                 }
                 const obj = preprocessJson(JSON.parse(jsonText), 150, revealedFields);
                 const worker = new Worker("./worker.js");
+
                 if (
                     obj &&
                     typeof hash == "string" &&
