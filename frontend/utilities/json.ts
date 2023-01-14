@@ -7,6 +7,8 @@ export function isJSON(jsonText: any) {
     }
 }
 
+export const MAX_JSON_LENGTH = 50;
+
 export function JSONStringifyCustom(val: any) {
     return JSON.stringify(
         val,
@@ -210,6 +212,22 @@ export function preprocessJson(
 
     return result;
 }
+
+export const createJson = (parsedJsonPtr: any, parsedJsonDataStorePtr: any) => {
+    for (var key in parsedJsonPtr) {
+        if (["string", "number", "boolean"].includes(typeof parsedJsonPtr[key])) {
+            let newLeaf: JSON_EL = {
+                value: parsedJsonPtr[key],
+                ticked: false,
+            };
+            parsedJsonDataStorePtr[key] = newLeaf;
+        } else {
+            let newJsonStore: JSON_STORE = {};
+            parsedJsonDataStorePtr[key] = newJsonStore;
+            createJson(parsedJsonPtr[key], parsedJsonDataStorePtr[key]);
+        }
+    }
+};
 
 // let json = {"name":"foobar","value":123,"map":{"a":true}}
 // preprocessJson(json, [["map", "a"]], 50, 3).then(res =>

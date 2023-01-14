@@ -1,6 +1,6 @@
-import { EddsaSignature } from "./types";
+import { EddsaSignature, ExtractedJSONSignature } from "./types";
 import { buildPoseidon } from "circomlibjs";
-import { Ascii } from "./json";
+import { Ascii, MAX_JSON_LENGTH, padJSONString } from "./json";
 
 const buildEddsa = require("circomlibjs").buildEddsa;
 const buildBabyjub = require("circomlibjs").buildBabyjub;
@@ -33,6 +33,23 @@ export async function calculatePoseidon(json: Ascii[]): Promise<string> {
     }
     return poseidon.F.toObject(poseidonRes).toString();
 }
+
+const convertDictToBuffer = (dict: Record<string, number>): Uint8Array => {
+    const arr = [];
+    for (let i = 0; i < Object.keys(dict).length; i++) {
+        arr.push(dict[`${i}`]);
+    }
+    return new Uint8Array(arr);
+};
+
+//extracts the signature and the json from a trusted API that signs requests
+export const extractSignatureInputs = (input: string): ExtractedJSONSignature => {
+    const jsonSignature = JSON.parse(input);
+    const packedSignature = convertDictToBuffer(jsonSignature.signature);
+    const servicePubkey = convertDictToBuffer(jsonSignature.pubkey);
+    const newFormattedJSON = padJSONString(JSON.stringify(JSON.parse(jsonSignature.json)), MAX_JSON_LENGTH);
+    return { packedSignature, servicePubkey, jsonText: jsonSignature.json, formattedJSON: newFormattedJSON };
+};
 
 export const generateEddsaSignature = async (privateKey: Uint8Array, msg: Uint8Array): Promise<EddsaSignature> => {
     eddsa = await buildEddsa();

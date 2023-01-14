@@ -10,11 +10,13 @@ import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
 import {
+    createJson,
     isJSON,
     isJSONStore,
     JSONStringifyCustom,
     JSON_EL,
     JSON_STORE,
+    MAX_JSON_LENGTH,
     padJSONString,
     preprocessJson,
     ProofArtifacts,
@@ -112,30 +114,14 @@ export default function Home() {
             return;
         }
         const privateKey = await localforage.getItem("zkattestorPrivKey");
-        const newFormattedJSON = padJSONString(JSON.stringify(JSON.parse(jsonText)), 50);
+        const newFormattedJSON = padJSONString(JSON.stringify(JSON.parse(jsonText)), MAX_JSON_LENGTH);
         setFormattedJSON(newFormattedJSON);
 
         // Populate JSON_STORE with data from JSON.parse(jsonText);
         let newJsonDataStore: JSON_STORE = {};
         let parsedJson = JSON.parse(jsonText);
 
-        const createJson = (parsedJsonPtr: any, parsedJsonDataStorePtr: any) => {
-            for (var key in parsedJsonPtr) {
-                if (["string", "number", "boolean"].includes(typeof parsedJsonPtr[key])) {
-                    let newLeaf: JSON_EL = {
-                        value: parsedJsonPtr[key],
-                        ticked: false,
-                    };
-                    parsedJsonDataStorePtr[key] = newLeaf;
-                } else {
-                    let newJsonStore: JSON_STORE = {};
-                    parsedJsonDataStorePtr[key] = newJsonStore;
-                    createJson(parsedJsonPtr[key], parsedJsonDataStorePtr[key]);
-                }
-            }
-        };
         createJson(parsedJson, newJsonDataStore);
-        console.log(newJsonDataStore);
         setJsonDataStore(newJsonDataStore);
         console.log("formatted: ", newFormattedJSON.length, jsonText.length);
         let hash = await calculatePoseidon(toAscii(newFormattedJSON));

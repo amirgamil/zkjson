@@ -9,20 +9,11 @@ import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
-import {
-    isJSON,
-    isJSONStore,
-    JSONStringifyCustom,
-    JSON_EL,
-    JSON_STORE,
-    padJSONString,
-    ProofArtifacts,
-    toAscii,
-} from "../utilities/json";
+import { createJson, isJSON, isJSONStore, JSON_EL, JSON_STORE, ProofArtifacts, toAscii } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
 import { VerifyPayload } from "../utilities/types";
-import { calculatePoseidon, generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
+import { calculatePoseidon, extractSignatureInputs, generateEddsaSignature, hardCodedInput } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
 
@@ -86,6 +77,24 @@ export default function Partners() {
         }
     };
 
+    const generateJSON = async () => {
+        const extracted = extractSignatureInputs(jsonText);
+        let newJsonDataStore: JSON_STORE = {};
+        let parsedJson = JSON.parse(extracted.jsonText);
+
+        createJson(parsedJson, newJsonDataStore);
+        setJsonDataStore(newJsonDataStore);
+
+        let hash = await calculatePoseidon(toAscii(extracted.formattedJSON));
+        let hashValue = BigInt(hash);
+        let hashArr = [];
+
+        for (let i = 0; i < 32; i++) {
+            hashArr.push(Number(hashValue % BigInt(256)));
+            hashValue = hashValue / BigInt(256);
+        }
+    };
+
     console.log(ed.utils.bytesToHex(ed.utils.randomPrivateKey()));
     useEffect(() => {
         async function checkIsRegistered() {
@@ -104,56 +113,6 @@ export default function Partners() {
         }
         checkIsRegistered();
     }, []);
-
-    const signJSON = async () => {
-        if (!isJSON(jsonText)) {
-            toast.error("Invalid JSON!");
-            return;
-        }
-        const privateKey = await localforage.getItem("zkattestorPrivKey");
-        const newFormattedJSON = padJSONString(JSON.stringify(JSON.parse(jsonText)), 50);
-        setFormattedJSON(newFormattedJSON);
-
-        // Populate JSON_STORE with data from JSON.parse(jsonText);
-        let newJsonDataStore: JSON_STORE = {};
-        let parsedJson = JSON.parse(jsonText);
-
-        const createJson = (parsedJsonPtr: any, parsedJsonDataStorePtr: any) => {
-            for (var key in parsedJsonPtr) {
-                if (["string", "number", "boolean"].includes(typeof parsedJsonPtr[key])) {
-                    let newLeaf: JSON_EL = {
-                        value: parsedJsonPtr[key],
-                        ticked: false,
-                    };
-                    parsedJsonDataStorePtr[key] = newLeaf;
-                } else {
-                    let newJsonStore: JSON_STORE = {};
-                    parsedJsonDataStorePtr[key] = newJsonStore;
-                    createJson(parsedJsonPtr[key], parsedJsonDataStorePtr[key]);
-                }
-            }
-        };
-        createJson(parsedJson, newJsonDataStore);
-        console.log(newJsonDataStore);
-        setJsonDataStore(newJsonDataStore);
-        console.log("formatted: ", newFormattedJSON.length, jsonText.length);
-        let hash = await calculatePoseidon(toAscii(newFormattedJSON));
-        console.log("hash: ", hash);
-        let hashValue = BigInt(hash);
-        let hashArr = [];
-        for (let i = 0; i < 16; i++) {
-            hashArr.push(Number(hashValue % BigInt(256)));
-            hashValue = hashValue / BigInt(256);
-        }
-        // const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
-        const signature = await generateEddsaSignature(
-            privateKey as Uint8Array,
-            // ethers.utils.toUtf8Bytes(newFormattedJSON)
-            Uint8Array.from(hashArr)
-        );
-        // console.log(JSONStringifyCustom(signature));
-        setSignature(signature);
-    };
 
     const verifyProof = async () => {
         try {
@@ -191,7 +150,7 @@ export default function Partners() {
                 <div className="py-2"></div>
                 <div style={{ width: "800px" }} className="flex flex-col justify-center items-center">
                     <Textarea
-                        placeholder={"Paste your JSON string"}
+                        placeholder={"Paste the output of any one of our trusted APIs here (which signs the JSON)"}
                         value={jsonText}
                         onChangeHandler={(newVal: string) => {
                             setJsonText(newVal);
@@ -204,15 +163,19 @@ export default function Partners() {
                             <JsonViewer value={formattedJSON} />
                         </>
                     ) : null}
-                    <br />
 
-                    <div className="py-2"></div>
-                    <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
-                    <br />
+                    <Button backgroundColor="black" color="white" onClickHandler={generateJSON}>
+                        Parse JSON
+                    </Button>
+                    <div className="py-4"></div>
 
                     <Button backgroundColor="black" color="white" onClickHandler={generateProof}>
                         {isLoading ? "loading..." : "Generate Proof"}
                     </Button>
+
+                    <div className="py-2"></div>
+                    <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
+                    <br />
 
                     {proofArtifacts && Object.keys(proofArtifacts).length !== 0 ? (
                         <div>
