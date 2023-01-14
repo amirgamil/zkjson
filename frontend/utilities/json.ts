@@ -51,7 +51,7 @@ export const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => 
         if (isJSONStore(ptr) && typeof key === "string" && ptr[key] && ptr[key]) {
             ptr = ptr[key];
         } else {
-            return undefined;
+            return null;
         }
     }
     return ptr;

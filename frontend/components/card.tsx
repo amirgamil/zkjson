@@ -12,8 +12,11 @@ export function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; key
     const [numKeys, setNumKeys] = useState<number>(0);
 
     useEffect(() => {
-        setFetchedJson(getRecursiveKeyInDataStore(props.keys, props.dataStore));
-        setNumKeys(Object.keys(getRecursiveKeyInDataStore(props.keys, props.dataStore)).length);
+        const json = getRecursiveKeyInDataStore(props.keys, props.dataStore);
+        if (json !== null) {
+            setFetchedJson(json);
+            setNumKeys(Object.keys(json).length);
+        }
     });
 
     return (
@@ -22,7 +25,7 @@ export function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; key
                 <>
                     {fetchJson && isJSONStore(fetchJson) && (
                         <>
-                            {Object.keys(getRecursiveKeyInDataStore(props.keys, props.dataStore)).map(
+                            {Object.keys(fetchJson).map(
                                 (key: string, index: any) => {
                                     return (
                                         <>

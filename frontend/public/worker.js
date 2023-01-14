@@ -7,6 +7,6 @@ self.addEventListener("message", async (evt) => {
         const result = await snarkjs.groth16.fullProve(input, "/jsonFull.wasm", zkeyFile);
         postMessage(result);
     } catch (ex) {
-        postMessage({ error: true});
+        postMessage({ error: true });
     }
 });

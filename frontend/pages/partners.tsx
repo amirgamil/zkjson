@@ -92,7 +92,7 @@ export default function Partners() {
             var revealedFields: number[] = [];
             for (var key of REQUIRED_FIELDS) {
                 var node = getRecursiveKeyInDataStore(key, JsonDataStore);
-                if (node !== undefined && !isJSONStore(node)) {
+                if (node !== null && !isJSONStore(node)) {
                     revealedFields.push(
                         node["ticked"] ? 1: 0
                     );
