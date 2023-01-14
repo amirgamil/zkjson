@@ -51,6 +51,7 @@ export const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => 
         if (isJSONStore(ptr) && typeof key === "string" && ptr[key] && ptr[key]) {
             ptr = ptr[key];
         } else {
+            return null;
         }
     }
     return ptr;
@@ -142,7 +143,20 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
     return attrQuery.reduce((acc: Record<string, any>, c: string) => acc[c], obj);
 }
 
-export function preprocessJson(obj: Object, jsonProgramSize: number): JsonCircuitInput | null {
+export const REQUIRED_FIELDS = [
+    ["crush", "name"],
+    ["crush", "basedScore"],
+    ["name"],
+    ["balance"],
+    ["height"],
+    ["superlative"]
+];
+
+export function preprocessJson(
+    obj: Object,
+    jsonProgramSize: number,
+): JsonCircuitInput | null {
+
     const jsonString = JSON.stringify(obj);
     const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
     let stackDepths = [0];
@@ -246,6 +260,32 @@ export const createJson = (parsedJsonPtr: any, parsedJsonDataStorePtr: any) => {
         }
     }
 };
+
+export const checkJsonSchema = (JsonDataStore: JSON_STORE) => {
+    
+
+    // Ensure that all the required fields exist;
+    var missingFields = [];
+    for (var fields of REQUIRED_FIELDS) {
+        if (getRecursiveKeyInDataStore(fields, JsonDataStore) === undefined) {
+            var fieldStr = "";
+            for (var field of fields) {
+                fieldStr += field;
+                fieldStr += '.';
+            }
+            missingFields.push(fieldStr.slice(0, length - 1));
+        }
+    }
+    if (missingFields.length) {
+        var errorStr = "Unable to generate proof! Missing the following fields: ";
+        for (var field of missingFields) {
+            errorStr += field;
+            errorStr += ", ";
+        }
+        throw new Error(`${errorStr}`);
+    }
+
+}
 
 // let json = {"name":"foobar","value":123,"map":{"a":true}}
 // preprocessJson(json, [["map", "a"]], 50, 3).then(res =>
