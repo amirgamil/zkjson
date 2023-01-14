@@ -170,7 +170,6 @@ let json = {
     "superlative": "stare at wall for 10 hrs"
 }
 
-
 // {
 //     "name": "shivam",
 //     "crushName": "amir",

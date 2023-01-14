@@ -7,7 +7,7 @@ export function isJSON(jsonText: any) {
     }
 }
 
-export const MAX_JSON_LENGTH = 50;
+export const MAX_JSON_LENGTH = 150;
 
 export function JSONStringifyCustom(val: any) {
     return JSON.stringify(

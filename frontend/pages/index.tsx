@@ -183,6 +183,50 @@ export default function Home() {
 
         setHash(hash);
         setSignature(signature);
+
+        console.log(hash);
+
+        let unsafe_sig: any = signature;
+        if ("R8" in signature && Array.isArray(signature["R8"])) {
+            console.log("R8:");
+            var buffer = "";
+            for (var i = 0; i < signature["R8"].length; i++) {
+                buffer += '"' + signature["R8"][i] + "\", ";
+            }
+            console.log(buffer);
+        }
+        console.log("----------------");
+
+        if ("S" in signature && Array.isArray(signature["S"])) {
+            console.log("S:");
+            var buffer = "";
+            for (var i = 0; i < signature["S"].length; i++) {
+                buffer += '"' + signature["S"][i] + "\", ";
+            }
+            console.log(buffer);
+        }
+        console.log("----------------");
+
+        if ("P" in signature && Array.isArray(signature["P"])) {
+            console.log("P:");
+            var buffer = "";
+            for (var i = 0; i < signature["P"].length; i++) {
+                buffer += '"' + signature["P"][i] + "\", ";
+            }
+            console.log(buffer);
+        }
+
+        console.log("----------------");
+
+        if ("msg" in signature && Array.isArray(signature["msg"])) {
+            console.log("msg:");
+            var buffer = "";
+            for (var i = 0; i < signature["msg"].length; i++) {
+                buffer += '"' + signature["msg"][i] + "\", ";
+            }
+            console.log(buffer);
+        }
+
     };
 
     const verifyProof = async () => {
@@ -219,7 +263,7 @@ export default function Home() {
 
                 <p className="mb-2">Select JSON elements to reveal in ZK-proof</p>
                 <div className="py-2"></div>
-                <div style={{ width: "800px" }} className="flex flex-col justify-center items-center">
+                <div style={{ width: "800px" }} className="font-mono text flex flex-col justify-center items-center">
                     {!hasKeypair ? (
                         "generating your key pair..."
                     ) : (
@@ -248,7 +292,11 @@ export default function Home() {
                     <br />
 
                     <div className="py-2"></div>
-                    <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
+                    <div className="bg-red">
+                        {"{"}
+                        <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
+                        {"}"}
+                    </div>
                     <br />
 
                     {jsonText && signature && (

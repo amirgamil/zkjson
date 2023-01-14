@@ -17,7 +17,7 @@ export function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; key
 
     return (
         <>
-            <ul className="ml-4">
+            <ul className="ml-4 font-mono text-sm">
                 <>
                     {fetchJson && isJSONStore(fetchJson) && (
                         <>
@@ -27,21 +27,35 @@ export function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; key
                                         <>
                                             {isJSONStore(fetchJson[key]) ? (
                                                 <>
-                                                    <strong className="mb-4">{key}: &#123;</strong>
+                                                    <span className="mb-4 ">{'"' + key + '"'}: &#123;</span>
                                                     <Card
                                                         dataStore={props.dataStore}
                                                         setKeyInDataStore={props.setKeyInDataStore}
                                                         keys={props.keys.concat([key])}
                                                     ></Card>
-                                                    <strong className="mb-4">
+                                                    <span className="mb-4">
                                                         &#125;
                                                         {index != numKeys - 1 && <>,</>}
-                                                    </strong>
+                                                    </span>
                                                 </>
                                             ) : (
                                                 <>
                                                     <div key={index}>
-                                                        <strong className="mb-4 mr-4">{key}: </strong>
+                                                        <span className="mb-4 mr-4">{'"' + key + '"'}: 
+                                                        {
+                                                            key in fetchJson && fetchJson[key]
+                                                                && typeof fetchJson[key]['value'] === 'string' ?
+                                                                '"' + fetchJson[key]['value'] + '"' :
+                                                                fetchJson[key]['value']
+                                                        }
+                                                        {
+                                                            (() => {
+                                                                console.log("100000000000000000", fetchJson[key]);
+                                                                return <></>;
+                                                            })()
+                                                        }
+                                                        {index != numKeys - 1 && <>,</>}
+                                                        </span>
                                                         <label className="inline-flex items-center">
                                                             <input
                                                                 type="checkbox"
@@ -56,9 +70,6 @@ export function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; key
                                                                 }
                                                             />
                                                         </label>
-                                                        <strong className="mb-4 mr-4">
-                                                            {index != numKeys - 1 && <>,</>}
-                                                        </strong>
                                                     </div>
                                                 </>
                                             )}
