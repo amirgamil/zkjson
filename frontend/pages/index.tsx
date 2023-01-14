@@ -84,7 +84,7 @@ export default function Home() {
         values: Ascii[][];
         keysOffset: number[][][];
         valuesOffset: number[][];
-        revealInput: number[];
+        inputReveal: number[];
         hashJsonProgram: string;
         pubKey: string[];
         R8: string[];
@@ -155,11 +155,11 @@ export default function Home() {
                         pubKey: signature["A"],
                         R8: signature["R8"],
                         S: signature["S"],
-                        revealInput: revealedFields,
+                        inputReveal: revealedFields,
                     };
 
-                    console.log(objFull);
-                    worker.postMessage([objFull, "./jsonFull_final2.zkey"]);
+                    console.log(JSON.stringify(objFull));
+                    worker.postMessage([objFull, "./jsonFull_final.zkey"]);
                 } else {
                     toast.error(
                         "Invalid proving request. Please ensure that your JSON includes the required attributes"
