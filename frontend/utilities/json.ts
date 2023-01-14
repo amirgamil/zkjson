@@ -144,70 +144,92 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
 
 export function preprocessJson(
     obj: Object,
-    attrQueries: AttributeQuery[],
     jsonProgramSize: number,
-    stackDepth: number
 ): JsonCircuitInput | null {
-    if (!checkAttributes(obj, attrQueries)) {
-        console.error("Attribute check failed!");
-        return null;
-    }
 
     const jsonString = JSON.stringify(obj);
-    const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
-    const queryDepth = attrQueries[0].length;
+	const jsonAscii = padAscii(toAscii(jsonString), jsonProgramSize);
+	let stackDepths = [0];
+	for (let i = 1; i < jsonString.length; i++) {
+		if (jsonString[i] === "{") {
+			stackDepths.push(stackDepths[stackDepths.length-1] + 1);
+		} else if (jsonString[i] === "}") {
+			stackDepths.push(stackDepths[stackDepths.length-1] - 1);
+		} else {
+			stackDepths.push(stackDepths[stackDepths.length-1]);
+		}
+	}
 
-    const attributes = padAscii2D(
-        attrQueries.map((attrQ) =>
-            attrQ.map((nestedAttr) => padAscii(toAscii(`"${nestedAttr}"`), ATTR_VAL_MAX_LENGTH))
-        ),
-        stackDepth
-    );
+	let stackDepth = Math.max(...stackDepths)+1;
 
-    const keysOffset = padAscii2D(
-        attrQueries.map((attrQ) =>
-            attrQ.map((nestedAttr) => {
-                const begin = jsonString.indexOf(`"${nestedAttr}"`);
-                const end = begin + nestedAttr.length + 1;
-                return [begin, end];
-            })
-        ),
-        stackDepth
-    );
+	let keyResults: number[][][] = [];
+	let keyOffsets: number[][][] = [];
+	let keys: string[][] = [];
+	let values: string[] = [];
+	let valueOffsets: number[][] = [];
+	for (let i = 0; i < stackDepth; i++) {
+		keyResults.push([]);
+	}
 
-    // TODO: Undefined behavior if repeated keys¯\_(ツ)_/¯
-    const values = extractValuesAscii(obj, attrQueries);
-    const valuesOffset: number[][] = attrQueries.map((attrQ, i) => {
-        // end index of the key + :" (2 chars)
-        const begin = keysOffset[i][queryDepth - 1][1] + 2;
-        const value: any = getValue(obj, attrQ);
-
-        if (typeof value == "string") {
-            const end = jsonString.indexOf('"', begin + 1);
-            return [begin, end];
-        } else if (typeof value == "number") {
-            let end = begin;
-            while (end < jsonString.length) {
-                const currChar = jsonString[end];
-                if (!(currChar >= "0" && currChar <= "9")) {
-                    return [begin, end - 1];
-                }
-                end++;
-            }
-            throw new Error("Invalid value type");
-        } else if (typeof value == "boolean") {
-            return [begin, begin + value.toString().length - 1];
-        } else {
-            throw new Error("Invalid value type");
-        }
-    });
+	let colonIndex = -1;
+	// check when things are in strings
+	while (jsonString.indexOf(":", colonIndex+1) !== -1) {
+		colonIndex = jsonString.indexOf(":", colonIndex+1);
+		let lastQuote = jsonString.lastIndexOf("\"", colonIndex);
+		let firstQuote = jsonString.lastIndexOf("\"", lastQuote-1);
+		let depth = stackDepths[colonIndex];
+		keyResults[depth].push([firstQuote, lastQuote]);
+		if (jsonString[colonIndex + 1] != "{") {
+			// look for comma or ending brace
+			let commaIndex = jsonString.indexOf(",", colonIndex);
+			let braceIndex = jsonString.indexOf("}", colonIndex);
+			let valueResult = [];
+			if (commaIndex > -1 && (commaIndex < braceIndex || braceIndex < 0)) {
+				valueResult.push(colonIndex+1);
+				valueResult.push(commaIndex-1);
+			} else if (braceIndex > -1 && (braceIndex < commaIndex || commaIndex < 0)) {
+				valueResult.push(colonIndex+1);
+				valueResult.push(braceIndex-1);
+			}
+			if (valueResult.length > 0) {
+				valueOffsets.push(valueResult);
+				values.push(jsonString.substring(valueResult[0], valueResult[1]+1));
+				let pathOffsets: number[][] = [];
+				let pathKeys: string[] = [];
+				for (let i = 0; i <= depth; i++) {
+					console.log("keyresults", keyResults);
+					let arr = keyResults[i];
+					pathOffsets.push(arr[arr.length-1]);
+					pathKeys.push(jsonString.substring(arr[arr.length-1][0], arr[arr.length-1][1]+1));
+				}
+				keyOffsets.push(pathOffsets);
+				keys.push(pathKeys);
+			}
+		}
+		colonIndex += 1;
+	}
+	let finalVals = values.map(str => padAscii(toAscii(str), 40));
+	// valueOffsets
+	let finalKeys = keys.map(strArr => {
+		let arr = strArr.map(str => padAscii(toAscii(str), 15));
+		while (arr.length < stackDepth) {
+			arr.push(new Array(15).fill(0));
+		}
+		return arr;
+	});
+	let finalKeyOffsets = keyOffsets.map(offsetArr => {
+		while (offsetArr.length < stackDepth) {
+			offsetArr.push([0, 0]);
+		}
+		return offsetArr;
+	});
 
     const result = {
         jsonProgram: jsonAscii,
-        keys: attributes,
-        values,
-        keysOffset,
-        valuesOffset,
+        keys: finalKeys,
+        values: finalVals,
+        keysOffset: finalKeyOffsets,
+        valuesOffset: valueOffsets,
     };
 
     return result;
