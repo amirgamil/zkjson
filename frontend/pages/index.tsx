@@ -90,7 +90,8 @@ export default function Home() {
 
             if (jsonText) {
                 console.log(formattedJSON);
-                const obj = await preprocessJson(JSON.parse(jsonText), [["map", "a"]], MAX_JSON_LENGTH, 3);
+                const obj = preprocessJson(JSON.parse(jsonText), 150);
+                console.log(JSON.stringify(obj));
 
                 const worker = new Worker("./worker.js");
                 if (

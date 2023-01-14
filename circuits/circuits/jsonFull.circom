@@ -9,9 +9,7 @@ include "./json.circom";
 include "./charType.circom";
 
 // @jsonProgramSize = large constant for max size json
-// @jsonProgramSize = large constant for max size json
-// @jsonProgramSize = large constant for max size json
-template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriTypes, queryDepths) {
+template JsonFull(stackDepth, numKeys, keyLengths, queryDepths) {
     // string of all the json
     
     var jsonProgramSize = 150;
@@ -19,16 +17,16 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     var maxKeysSize = 15;
     var maxValueSize = 40;
     
-    // signal input pubKey[256];
+    signal input pubKey[256];
     signal hashbits[254];
-    // signal input R8[256];
-    // signal input S[256];
+    signal input R8[256];
+    signal input S[256];
 
     signal input inputReveal[numKeys];
 
     signal input jsonProgram[jsonProgramSize];
 
-    // signal input hashJsonProgram;
+    signal input hashJsonProgram;
 
     signal input values[numKeys][maxValueSize];
     signal input keys[numKeys][stackDepth][maxKeysSize];
@@ -37,7 +35,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
 
     component mAnd[jsonProgramSize][numKeys];
      // verify json hashes to provided hash
-    // component poseidon = PoseidonLarge(jsonProgramSize);
+    component poseidon = PoseidonLarge(jsonProgramSize);
     
     signal input valuesOffset[numKeys][2];
     signal output out;
@@ -46,20 +44,20 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
 
     component hash2bits = Num2Bits(254);
 
-    // for (var i = 0; i < jsonProgramSize; i++) {
-    //   num2bits[i] = Num2Bits(7);
-    //   num2bits[i].in <== jsonProgram[i];
-    // }
+    for (var i = 0; i < jsonProgramSize; i++) {
+      num2bits[i] = Num2Bits(7);
+      num2bits[i].in <== jsonProgram[i];
+    }
 
-    // hash2bits.in <== hashJsonProgram;
+    hash2bits.in <== hashJsonProgram;
 
     // first constrain that passed in JSON is indeed what was signed
     //TODO: change when we change jsonProgramSize
-    // component eddsa = EdDSAVerifier(254);
-    // eddsa.A <== pubKey;
-    // eddsa.R8 <== R8;
-    // eddsa.S <== S;
-    // eddsa.msg  <== hash2bits.out;
+    component eddsa = EdDSAVerifier(254);
+    eddsa.A <== pubKey;
+    eddsa.R8 <== R8;
+    eddsa.S <== S;
+    eddsa.msg  <== hash2bits.out;
 
     // + 1 to allocate empty memory field
     // array of depth where index is 1 corresponding to what depth in the stack we are
@@ -121,7 +119,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     // state 15: fal
     // state 16: fals
     for (var i = 0; i < jsonProgramSize; i++) {
-        // poseidon.in[i] <== jsonProgram[i];
+        poseidon.in[i] <== jsonProgram[i];
         charTypes[i] = getCharType();
 
         charTypes[i].in <== jsonProgram[i];
@@ -213,8 +211,8 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
 
         for (var j = 0; j < 2; j++) {
           extra_intermediates[i][j] <== jsonStack[i][0][j] * notZeroOrBrackets;
-          more_intermediates[i][stackDepth - 1][0][j] <== jsonStack[i][stackDepth - 1][0] * (1 - isClosingBracket);
-          jsonStack[i + 1][stackDepth - 1][j] <== more_intermediates[i][stackDepth - 1][0][j] + jsonStack[i][stackDepth - 2][0] * charTypes[i].out[1];
+          more_intermediates[i][stackDepth - 1][0][j] <== jsonStack[i][stackDepth - 1][j] * (1 - isClosingBracket);
+          jsonStack[i + 1][stackDepth - 1][j] <== more_intermediates[i][stackDepth - 1][0][j] + jsonStack[i][stackDepth - 2][j] * charTypes[i].out[1];
         }
         jsonStack[i + 1][0][0] <== jsonStack[i][1][0] * isClosingBracket + extra_intermediates[i][0] + charTypes[i].out[1];
         jsonStack[i + 1][0][1] <== jsonStack[i][1][1] * isClosingBracket + extra_intermediates[i][1] + charTypes[i].out[3];
@@ -249,9 +247,7 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
         var sum;
         for (var j = 0; j < 20; j++) {
           sum += states[i+1][j];
-          log(states[i + 1][j]);
         }
-        log("------------------------");
         1 === sum;
     }
     for (var i = 1; i < jsonProgramSize; i++) {
@@ -340,38 +336,20 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
     }
 
     // extracting
-    component valueMatchesNumbers[numKeys];
-    component valueMatchesStrings[numKeys];
-    component valueMatchesList[numKeys];
+    component valueMatches[numKeys];
 
     for (var i = 0; i < numKeys; i++) {
-      // If numbers
-      if (attriTypes[attrExtractingIndices[i]] != 1) {
-        valueMatchesStrings[i] = StringValueCompare(jsonProgramSize, maxValueSize);
-        for (var attIndex = 0; attIndex < maxValueSize; attIndex++) {
-          valueMatchesStrings[i].attribute[attIndex] <== values[attrExtractingIndices[i]][attIndex];
-        }
-        valueMatchesStrings[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
-        valueMatchesStrings[i].JSON <== jsonProgram;
-        valueMatchesStrings[i].on <== inputReveal[i];
+      valueMatches[i] = ValueCompare(jsonProgramSize, maxValueSize);
+      for (var attIndex = 0; attIndex < maxValueSize; attIndex++) {
+        valueMatches[i].attribute[attIndex] <== values[i][attIndex];
       }
-      
-      // If strings
-      else if (attriTypes[attrExtractingIndices[i]] == 1) {
-          valueMatchesNumbers[i] = NumberValueCompare(jsonProgramSize);
-          valueMatchesNumbers[i].keyOffset <== valuesOffset[attrExtractingIndices[i]];
-          valueMatchesNumbers[i].JSON <== jsonProgram;
-          // if values is a number it will be the first element of the array
-          valueMatchesNumbers[i].out === values[attrExtractingIndices[i]][0];
-          // If lists
-          // if it's attriTypes is not a 0 or 1, it's a list and the number is the number of the characters
-          // in the list (note a list can never have 0 or 1 characters)
-      }
-      // TODO: check for 2s
+      valueMatches[i].keyOffset <== valuesOffset[i];
+      valueMatches[i].JSON <== jsonProgram;
+      valueMatches[i].on <== inputReveal[i];
     }
    
     // assert hash is the same as what is passed in (including trailing 0s)
-    // poseidon.out === hashJsonProgram;
+    poseidon.out === hashJsonProgram;
 
     component finalCheck = IsEqual();
     finalCheck.in[0] <== stackPtr[jsonProgramSize - 1];
@@ -382,146 +360,14 @@ template JsonFull(stackDepth, numKeys, keyLengths, attrExtractingIndices, attriT
 component main { public [
   jsonProgram,
   keysOffset
-] } = JsonFull(2, 6, [[7, 6], [7, 12], [6, 0], [9, 0], [8, 0], [13, 0]], [0, 1, 2, 3, 4, 5], [0, 1, 0, 0, 0, 0], [2, 2, 1, 1, 1, 1]);
+] } = JsonFull(2, 6, [[6, 0], [7, 6], [7, 12], [9, 0], [8, 0], [13, 0]], [1, 2, 2, 1, 1, 1]);
 
 /* INPUT = {
-  "jsonProgram": [
-    123,  34, 110,  97, 109, 101,  34,  58,  34, 115,
-    104, 105, 118,  97, 109,  34,  44,  34,  99, 114,
-    117, 115, 104,  34,  58, 123,  34, 110,  97, 109,
-    101,  34,  58,  34,  65, 109, 105, 114,  34,  44,
-    34,  98,  97, 115, 101, 100,  83,  99, 111, 114,
-    101,  34,  58,  49,  48, 125,  44,  34,  98,  97,
-    108,  97, 110,  99, 101,  34,  58,  34,  48,  34,
-    44,  34, 104, 101, 105, 103, 104, 116,  34,  58,
-    34,  54,  39,  53,  34,  44,  34, 115, 117, 112,
-    101, 114, 108,  97, 116, 105, 118, 101,  34,  58,
-    34, 115, 116, 97, 114, 101,  32, 97, 116, 32, 119,
-    97, 108, 108, 32, 102, 111, 114, 32,  49, 48,  32,
-    104, 114, 115, 34, 125,   0,   0,  0,   0,  0,   0,
-      0,   0,   0,  0,   0,   0,   0,  0,   0,  0,   0,
-      0,   0,   0,  0,   0,   0
-  ],
-  "inputReveal": [1, 1, 1, 1, 1, 1],
-  "keys": [
-    [
-      [
-        34, 99, 114, 117, 115, 104,
-        34,  0,   0,   0,   0,   0,
-         0,  0,   0
-      ],
-      [
-        34, 110, 97, 109, 101, 34,
-         0,   0,  0,   0,   0,  0,
-         0,   0,  0
-      ]
-    ],
-    [
-      [
-        34, 99, 114, 117, 115, 104,
-        34,  0,   0,   0,   0,   0,
-         0,  0,   0
-      ],
-      [
-        34, 98,  97, 115, 101, 100,
-        83, 99, 111, 114, 101,  34,
-         0,  0,   0
-      ]
-    ],
-    [
-      [
-        34, 110, 97, 109, 101, 34,
-         0,   0,  0,   0,   0,  0,
-         0,   0,  0
-      ],
-      [
-        0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0,
-        0, 0, 0
-      ]
-    ],
-    [
-      [
-        34,  98, 97, 108, 97, 110,
-        99, 101, 34,   0,  0,   0,
-         0,   0,  0
-      ],
-      [
-        0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0,
-        0, 0, 0
-      ]
-    ],
-    [
-      [
-         34, 104, 101, 105, 103, 104,
-        116,  34,   0,   0,   0,   0,
-          0,   0,   0
-      ],
-      [
-        0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0,
-        0, 0, 0
-      ]
-    ],
-    [
-      [
-         34, 115, 117, 112, 101,
-        114, 108,  97, 116, 105,
-        118, 101,  34,   0,   0
-      ],
-      [
-        0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0,
-        0, 0, 0
-      ]
-    ]
-  ],
-  "values": [
-    [
-      34, 65, 109, 105, 114, 34, 0, 0, 0, 0,
-       0,  0,   0,   0,   0,  0, 0, 0, 0, 0,
-       0,  0,   0,   0,   0,  0, 0, 0, 0, 0,
-       0,  0,   0,   0,   0,  0, 0, 0, 0, 0
-    ],
-    [
-      49, 48, 0, 0, 0, 0, 0, 0, 0, 0,
-       0,  0, 0, 0, 0, 0, 0, 0, 0, 0,
-       0,  0, 0, 0, 0, 0, 0, 0, 0, 0,
-       0,  0, 0, 0, 0, 0, 0, 0, 0, 0
-    ],
-    [
-      34, 115, 104, 105, 118, 97, 109, 34, 0, 0,
-       0,   0,   0,   0,   0,  0,   0,  0, 0, 0,
-       0,   0,   0,   0,   0,  0,   0,  0, 0, 0,
-       0,   0,   0,   0,   0,  0,   0,  0, 0, 0
-    ],
-    [
-      34, 48, 34, 0, 0, 0, 0, 0, 0, 0,
-       0,  0,  0, 0, 0, 0, 0, 0, 0, 0,
-       0,  0,  0, 0, 0, 0, 0, 0, 0, 0,
-       0,  0,  0, 0, 0, 0, 0, 0, 0, 0
-    ],
-    [
-      34, 54, 39, 53, 34, 0, 0, 0, 0, 0,
-       0,  0,  0,  0,  0, 0, 0, 0, 0, 0,
-       0,  0,  0,  0,  0, 0, 0, 0, 0, 0,
-       0,  0,  0,  0,  0, 0, 0, 0, 0, 0
-    ],
-    [
-       34, 115, 116,  97, 114, 101,  32,  97, 116, 32,
-      119,  97, 108, 108,  32, 102, 111, 114,  32, 49,
-       48,  32, 104, 114, 115,  34,   0,   0,   0,  0,
-        0,   0,   0,   0,   0,   0,   0,   0,   0,  0
-    ]
-  ],
-  "keysOffset": [
-    [ [ 17, 23 ], [ 1, 6 ] ],
-    [ [ 17, 23 ], [ 40, 51 ] ],
-    [ [ 1, 6 ], [ 0, 0 ] ],
-    [ [ 57, 65 ], [ 0, 0 ] ],
-    [ [ 71, 78 ], [ 0, 0 ] ],
-    [ [ 86, 98 ], [ 0, 0 ] ]
-  ],
-  "valuesOffset": [ [ 8, 15 ], [ 53, 54 ], [ 2, 6 ], [ 2, 6 ], [ 2, 6 ], [ 2, 6 ] ]
-} */
+"inputReveal": [1, 1, 1, 1, 1, 1],
+"jsonProgram":[123,34,110,97,109,101,34,58,34,115,104,105,118,97,109,34,44,34,99,114,117,115,104,34,58,123,34,110,97,109,101,34,58,34,65,109,105,114,34,44,34,98,97,115,101,100,83,99,111,114,101,34,58,49,48,125,44,34,98,97,108,97,110,99,101,34,58,34,48,34,44,34,104,101,105,103,104,116,34,58,34,54,39,53,34,44,34,115,117,112,101,114,108,97,116,105,118,101,34,58,34,115,116,97,114,101,32,97,116,32,119,97,108,108,32,102,111,114,32,49,48,32,104,114,115,34,125,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+"keys":[[[34,110,97,109,101,34,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],[[34,99,114,117,115,104,34,0,0,0,0,0,0,0,0],[34,110,97,109,101,34,0,0,0,0,0,0,0,0,0]],[[34,99,114,117,115,104,34,0,0,0,0,0,0,0,0],[34,98,97,115,101,100,83,99,111,114,101,34,0,0,0]],[[34,98,97,108,97,110,99,101,34,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],[[34,104,101,105,103,104,116,34,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],[[34,115,117,112,101,114,108,97,116,105,118,101,34,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]],
+"values":[[34,115,104,105,118,97,109,34,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[34,65,109,105,114,34,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[49,48,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[34,48,34,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[34,54,39,53,34,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[34,115,116,97,114,101,32,97,116,32,119,97,108,108,32,102,111,114,32,49,48,32,104,114,115,34,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],
+"keysOffset":[[[1,6],[0,0]],[[17,23],[26,31]],[[17,23],[40,51]],[[57,65],[0,0]],[[71,78],[0,0]],[[86,98],[0,0]]],
+"valuesOffset":[[8,15],[33,38],[53,54],[67,69],[80,84],[100,125]]
+}
+*/
