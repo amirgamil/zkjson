@@ -4,7 +4,6 @@ export type VerifyPayload = {
 
 export interface EddsaSignature {
     pubKey: string[];
-    msg: string[];
     R8: string[];
     S: string[];
 }

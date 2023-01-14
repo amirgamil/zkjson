@@ -145,7 +145,6 @@ export default function Partners() {
         circuitInputs.current = { ...extracted, hash };
     };
 
-    console.log(ed.utils.bytesToHex(ed.utils.randomPrivateKey()));
     useEffect(() => {
         async function checkIsRegistered() {
             const maybePrivKey = await localforage.getItem("zkattestorPrivKey");

@@ -1,6 +1,7 @@
 import { EddsaSignature, ExtractedJSONSignature } from "./types";
 import { buildPoseidon } from "circomlibjs";
 import { Ascii, MAX_JSON_LENGTH, padJSONString } from "./json";
+import * as ed from "@noble/ed25519";
 
 const buildEddsa = require("circomlibjs").buildEddsa;
 const buildBabyjub = require("circomlibjs").buildBabyjub;
@@ -45,7 +46,6 @@ const convertDictToBuffer = (dict: Record<string, number>): Uint8Array => {
 export const finalizeCircuitInputs = (obj: any, jsonText: string) => {};
 
 export const extractPartsFromSignature = (pSignature: Uint8Array, msg: Uint8Array, pubKey: Uint8Array) => {
-    const msgBits = buffer2bits(msg);
     const r8Bits = buffer2bits(pSignature.slice(0, 32));
     const sBits = buffer2bits(pSignature.slice(32, 64));
     const aBits = buffer2bits(pubKey);
