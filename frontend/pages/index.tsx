@@ -28,7 +28,7 @@ import {
 } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
-import { VerifyPayload } from "../utilities/types";
+import { EddsaSignature, VerifyPayload } from "../utilities/types";
 import { calculatePoseidon, generateEddsaSignature, hardCodedInput, strHashToBuffer } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
