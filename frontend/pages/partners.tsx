@@ -10,7 +10,9 @@ import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
 import {
+    checkJsonSchema,
     createJson,
+    getRecursiveKeyInDataStore,
     isJSON,
     isJSONStore,
     JSON_EL,
@@ -18,6 +20,7 @@ import {
     MAX_JSON_LENGTH,
     preprocessJson,
     ProofArtifacts,
+    REQUIRED_FIELDS,
     toAscii,
 } from "../utilities/json";
 import styled from "styled-components";
@@ -78,27 +81,49 @@ export default function Partners() {
                 return;
             }
             setIsLoading(true);
+            checkJsonSchema(JsonDataStore);
             // hardCoded.jsonProgram.map(BigInt);
             const sigParts = extractPartsFromSignature(
                 circuitInputs.current.packedSignature,
                 strHashToBuffer(circuitInputs.current.hash),
                 circuitInputs.current.servicePubkey
             );
+
+            var revealedFields: number[] = [];
+            for (var key of REQUIRED_FIELDS) {
+                var node = getRecursiveKeyInDataStore(key, JsonDataStore);
+                if (node !== undefined && !isJSONStore(node)) {
+                    revealedFields.push(
+                        node["ticked"] ? 1: 0
+                    );
+                }
+            }
+
             const hash = circuitInputs.current.hash;
             const formattedJSON = circuitInputs.current.formattedJSON;
-            const obj = await preprocessJson(circuitInputs.current.jsonText, [["map", "a"]], MAX_JSON_LENGTH, 3);
-            const finalInput = { ...sigParts, hash, jsonProgram: formattedJSON, ...obj };
+            const obj = await preprocessJson(circuitInputs.current.jsonText, 150);
+            const finalInput = { ...sigParts, hashJsonProgram: hash, jsonProgram: formattedJSON, ...obj, inputReveal: revealedFields, };
+            console.log(JSON.stringify(finalInput));
 
             const worker = new Worker("./worker.js");
             worker.postMessage([finalInput, "./jsonFull_final.zkey"]);
             worker.onmessage = async function (e) {
-                const { proof, publicSignals } = e.data;
-                setProofArtifacts({ proof, publicSignals });
-                console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
-                toast.success("Generated proof!");
-                setIsLoading(false);
+                const { proof, publicSignals, error } = e.data;
+                if (error) {
+                    toast.error("Could not generate proof, invalid signature");
+                } else {
+                    setProofArtifacts({ proof, publicSignals });
+                    console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
+                    toast.success("Generated proof!");
+                    setIsLoading(false);
+                }
             };
         } catch (ex) {
+            setIsLoading(false);
+            if (ex instanceof Error && ex.message.startsWith("Unable to generate proof! Missing")) {
+                toast.error(ex.message);
+                return;
+            }
             console.error(ex);
             toast.error("Something went wrong :(");
         }

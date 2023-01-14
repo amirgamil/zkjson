@@ -23,6 +23,8 @@ import {
     ProofArtifacts,
     toAscii,
     getRecursiveKeyInDataStore,
+    checkJsonSchema,
+    REQUIRED_FIELDS,
 } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
@@ -47,8 +49,7 @@ const Container = styled.main`
 interface Signature {
     "R8": string[],
     "S": string[],
-    "A": string[],
-    "msg": string[],
+    "pubKey": string[],
 }
 
 export default function Home() {
@@ -99,37 +100,7 @@ export default function Home() {
             }
             setIsLoading(true);
 
-            const REQUIRED_FIELDS = [
-                ["crush", "name"],
-                ["crush", "basedScore"],
-                ["name"],
-                ["balance"],
-                ["height"],
-                ["superlative"]
-            ]
-
-            // Ensure that all the required fields exist;
-            var missingFields = [];
-            for (var fields of REQUIRED_FIELDS) {
-                if (getRecursiveKeyInDataStore(fields, JsonDataStore) === undefined) {
-                    var fieldStr = "";
-                    for (var field of fields) {
-                        fieldStr += field;
-                        fieldStr += '.';
-                    }
-                    missingFields.push(fieldStr.slice(0, length - 1));
-                }
-            }
-            if (missingFields.length) {
-                var errorStr = "Unable to generate proof! Missing the following fields: ";
-                for (var field of missingFields) {
-                    errorStr += field;
-                    errorStr += ", ";
-                }
-                toast.error(errorStr.slice(0, errorStr.length - 2));
-                return;
-            }
-
+            checkJsonSchema(JsonDataStore) 
             if (jsonText) {
                 const obj = preprocessJson(JSON.parse(jsonText), 150);
                 const worker = new Worker("./worker.js");
@@ -152,7 +123,7 @@ export default function Home() {
                     let objFull: FullJsonCircuitInput = {
                         ...obj,
                         hashJsonProgram: hash,
-                        pubKey: signature["A"],
+                        pubKey: signature["pubKey"],
                         R8: signature["R8"],
                         S: signature["S"],
                         inputReveal: revealedFields,
@@ -161,6 +132,7 @@ export default function Home() {
                     console.log(JSON.stringify(objFull));
                     worker.postMessage([objFull, "./jsonFull_final.zkey"]);
                 } else {
+                    setIsLoading(false);
                     toast.error(
                         "Invalid proving request. Please ensure that your JSON includes the required attributes"
                     );
@@ -168,15 +140,24 @@ export default function Home() {
                 }
 
                 worker.onmessage = async function (e) {
-                    const { proof, publicSignals } = e.data;
+                    const { proof, publicSignals, error } = e.data;
+                    if (error) {
+                        toast.error("Could not generate proof, invalid signature");
+                    } else {
                     setProofArtifacts({ proof, publicSignals });
 
                     console.log("PROOF SUCCESSFULLY GENERATED: ", proof, publicSignals);
                     toast.success("Generated proof!");
                     setIsLoading(false);
+                    }
                 };
             }
         } catch (ex) {
+            setIsLoading(false);
+            if (ex instanceof Error && ex.message.startsWith("Unable to generate proof! Missing")) {
+                toast.error(ex.message);
+                return;
+            }
             console.error(ex);
             toast.error("Something went wrong :(");
         }
