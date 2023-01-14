@@ -9,7 +9,8 @@ type JsonCircuitInput = {
     valuesOffsets: number[][];
 };
 
-const ATTR_VAL_MAX_LENGTH = 10; // TODO: idk
+const ATTR_VAL_MAX_LENGTH = 15; // TODO: idk
+const VAL_MAX_LENGTH = 40; // TODO: idk
 
 function toAscii(str: string): Ascii[] {
     return Array.from(str).map((_, i) => str.charCodeAt(i));
@@ -50,8 +51,8 @@ function checkAttributes(obj: { [key: string]: any }, attrQueries: AttributeQuer
     const depth = attrQueries[0].length;
     const allDepthsEqual = attrQueries.map((x) => x.length === depth).reduce((acc, c) => acc && c);
     if (!allDepthsEqual) {
-        console.error("Not all query depths are equal!");
-        return false;
+        // console.error("Not all query depths are equal!");
+        // return false;
     }
 
     // check that the queried keys exist
@@ -72,9 +73,9 @@ function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[]): Ascii[]
     return attrQueries.map((attrQ) => {
         const value = getValue(obj, attrQ);
         if (typeof value === "string") {
-            return padAscii(toAscii(`"${value}"`), ATTR_VAL_MAX_LENGTH);
+            return padAscii(toAscii(`"${value}"`), VAL_MAX_LENGTH);
         } else if (typeof value === "number" || typeof value == "boolean") {
-            return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH);
+            return padAscii(toAscii(value.toString()), VAL_MAX_LENGTH);
         }
     });
 }
@@ -143,6 +144,10 @@ async function preprocessJson(
         }
     });
 
+    console.log(jsonAscii.splice(0, 50));
+    console.log(jsonAscii.splice(0, 50));
+    console.log(jsonAscii.splice(0, 50));
+
     const result = {
         json: jsonAscii,
         keys: attributes,
@@ -154,5 +159,24 @@ async function preprocessJson(
     return result;
 }
 
-let json = { name: "foobar", value: 123, map: { a: true } };
-preprocessJson(json, [["map", "a"]], 50, 3).then((res) => console.dir(res, { depth: null }));
+let json = {
+    "name": "shivam",
+    "crush": {
+        "name": "Amir",
+        "basedScore": 10
+    },
+    "balance": "0",
+    "height": "6'5",
+    "superlative": "stare at wall for 10 hrs"
+}
+
+
+// {
+//     "name": "shivam",
+//     "crushName": "amir",
+//     "balance": "0",
+//     "height": "6'5",
+//     "superlative": "stare at wall for 10 hrs"
+// }
+
+preprocessJson(json, [["crush", "name"], ["crush", "basedScore"], ["name"], ["balance"], ["height"], ["superlative"]], 150, 2).then((res) => console.dir(res, { depth: null }));
