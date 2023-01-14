@@ -144,9 +144,9 @@ function getValue(obj: Object, attrQuery: AttributeQuery) {
 }
 
 export const REQUIRED_FIELDS = [
+    ["name"],
     ["crush", "name"],
     ["crush", "basedScore"],
-    ["name"],
     ["balance"],
     ["height"],
     ["superlative"]
@@ -155,6 +155,7 @@ export const REQUIRED_FIELDS = [
 export function preprocessJson(
     obj: Object,
     jsonProgramSize: number,
+    revealInputs: number[]
 ): JsonCircuitInput | null {
 
     const jsonString = JSON.stringify(obj);
@@ -177,6 +178,8 @@ export function preprocessJson(
     let keys: string[][] = [];
     let values: string[] = [];
     let valueOffsets: number[][] = [];
+    let revealInputIndex: number = 0;
+
     for (let i = 0; i < stackDepth; i++) {
         keyResults.push([]);
     }
@@ -203,7 +206,14 @@ export function preprocessJson(
             }
             if (valueResult.length > 0) {
                 valueOffsets.push(valueResult);
-                values.push(jsonString.substring(valueResult[0], valueResult[1] + 1));
+                if (revealInputIndex < revealInputs.length && revealInputs[revealInputIndex]) {
+                    values.push(
+                        jsonString.substring(valueResult[0], valueResult[1] + 1)
+                    );
+                } else {
+                    values.push("");
+                }
+                revealInputIndex++;
                 let pathOffsets: number[][] = [];
                 let pathKeys: string[] = [];
                 for (let i = 0; i <= depth; i++) {

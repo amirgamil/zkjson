@@ -38,6 +38,8 @@ import { Card } from "../components/card";
 import Link from "next/link";
 import ReactLoading from "react-loading";
 
+import JSConfetti from 'js-confetti'
+
 const Container = styled.main`
     .viewProof {
         text-decoration: underline !important;
@@ -55,6 +57,7 @@ export default function Partners() {
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
     const [JsonDataStore, setJsonDataStore] = useState<JSON_STORE>({});
+    const [confetti, setConfetti] = useState<any>(undefined);
 
     const circuitInputs = useRef<ExtractedJSONSignature & { hash: string }>();
 
@@ -97,18 +100,14 @@ export default function Partners() {
                     revealedFields.push(node["ticked"] ? 1 : 0);
                 }
             }
-
             const hash = circuitInputs.current.hash;
             const formattedJSON = circuitInputs.current.formattedJSON;
-            const obj = await preprocessJson(circuitInputs.current.jsonText, 150);
-            const finalInput = {
-                ...sigParts,
-                hashJsonProgram: hash,
-                jsonProgram: formattedJSON,
-                ...obj,
-                inputReveal: revealedFields,
-            };
-            console.log(JSON.stringify(finalInput));
+            const obj = await preprocessJson(circuitInputs.current.jsonText, 150, revealedFields);
+
+
+            const finalInput = { ...sigParts, hashJsonProgram: hash, jsonProgram: formattedJSON, ...obj, inputReveal: revealedFields, };
+            
+            console.log("HELLLL", finalInput);
 
             const worker = new Worker("./worker.js");
             worker.postMessage([finalInput, "./jsonFull_final.zkey"]);
@@ -166,12 +165,22 @@ export default function Partners() {
         checkIsRegistered();
     }, []);
 
+    useEffect(() => {
+        setConfetti(new JSConfetti());
+    }, []);
+
     const verifyProof = async () => {
         try {
             setIsLoading(2);
             const resultVerified = await axios.post<VerifyPayload>("/api/verify", { ...proofArtifacts });
             if (resultVerified.data.isValidProof) {
                 toast.success("Successfully verified proof!");
+                confetti.addConfetti(
+                    {
+                        confettiRadius: 50,
+                        emojis: ['😘']
+                    }
+                ).then((_: any) => confetti.clearCanvas());
             } else {
                 toast.error("Failed to verify proof");
             }
@@ -251,6 +260,17 @@ export default function Partners() {
                                     rel="noreferrer"
                                 >
                                     View Proof
+                                </a>
+                            </div>
+                            <div className="flex underlineContainer justify-center items-center text-center">
+                                <a
+                                    className="viewProof text-underline"
+                                    target="_blank"
+                                    href={"data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.publicSignals)}
+                                    download={"publicParams.json"}
+                                    rel="noreferrer"
+                                >
+                                    View Public Info
                                 </a>
                             </div>
                             <div className="py-2"></div>

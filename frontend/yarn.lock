@@ -3021,11 +3021,6 @@
   dependencies:
     "ms" "^2.0.0"
 
-"i@^0.3.7":
-  "integrity" "sha512-FYz4wlXgkQwIPqhzC5TdNMLSE5+GS1IIDJZY/1ZiEPCT2S3COUVZeT5OW4BmW4r5LHLQuOosSwsvnroG9GR59Q=="
-  "resolved" "https://registry.npmjs.org/i/-/i-0.3.7.tgz"
-  "version" "0.3.7"
-
 "iconv-lite@^0.6.2":
   "version" "0.6.3"
   dependencies:
@@ -3283,6 +3278,11 @@
     "chalk" "^4.0.2"
     "filelist" "^1.0.1"
     "minimatch" "^3.0.4"
+
+"js-confetti@^0.11.0":
+  "integrity" "sha512-Hc7I3VI4r4H0nq5q/oQK+JJwGoYRYVHK72fGk8E9Ay1dbh+aiZ9yl0yFp1K4oYeq7YFDQAndYChwqLPA3QWQuA=="
+  "resolved" "https://registry.npmjs.org/js-confetti/-/js-confetti-0.11.0.tgz"
+  "version" "0.11.0"
 
 "js-sdsl@^4.1.4":
   "integrity" "sha512-dyBIzQBDkCqCu+0upx25Y2jGdbTGxE9fshMsCdK0ViOongpV+n5tXRcZY9v7CaVQ79AGS9KA1KHtojxiM7aXSQ=="
