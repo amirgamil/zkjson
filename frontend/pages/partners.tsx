@@ -38,7 +38,7 @@ import { Card } from "../components/card";
 import Link from "next/link";
 import ReactLoading from "react-loading";
 
-import JSConfetti from 'js-confetti'
+import JSConfetti from "js-confetti";
 
 const Container = styled.main`
     .viewProof {
@@ -52,7 +52,7 @@ const Container = styled.main`
 
 export default function Partners() {
     const [jsonText, setJsonText] = useState<string>("");
-    const [isLoading, setIsLoading] = useState<number | undefined>(undefined);
+    const [isLoading, setIsLoading] = useState<number | undefined>(2);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
@@ -104,9 +104,14 @@ export default function Partners() {
             const formattedJSON = circuitInputs.current.formattedJSON;
             const obj = await preprocessJson(circuitInputs.current.jsonText, 150, revealedFields);
 
+            const finalInput = {
+                ...sigParts,
+                hashJsonProgram: hash,
+                jsonProgram: formattedJSON,
+                ...obj,
+                inputReveal: revealedFields,
+            };
 
-            const finalInput = { ...sigParts, hashJsonProgram: hash, jsonProgram: formattedJSON, ...obj, inputReveal: revealedFields, };
-            
             console.log("HELLLL", finalInput);
 
             const worker = new Worker("./worker.js");
@@ -175,12 +180,12 @@ export default function Partners() {
             const resultVerified = await axios.post<VerifyPayload>("/api/verify", { ...proofArtifacts });
             if (resultVerified.data.isValidProof) {
                 toast.success("Successfully verified proof!");
-                confetti.addConfetti(
-                    {
+                confetti
+                    .addConfetti({
                         confettiRadius: 50,
-                        emojis: ['😘']
-                    }
-                ).then((_: any) => confetti.clearCanvas());
+                        emojis: ["😘"],
+                    })
+                    .then((_: any) => confetti.clearCanvas());
             } else {
                 toast.error("Failed to verify proof");
             }
@@ -266,7 +271,9 @@ export default function Partners() {
                                 <a
                                     className="viewProof text-underline"
                                     target="_blank"
-                                    href={"data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.publicSignals)}
+                                    href={
+                                        "data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.publicSignals)
+                                    }
                                     download={"publicParams.json"}
                                     rel="noreferrer"
                                 >
@@ -274,13 +281,15 @@ export default function Partners() {
                                 </a>
                             </div>
                             <div className="py-2"></div>
-                            <Button backgroundColor="black" color="white" onClickHandler={verifyProof}>
-                                {isLoading === 2 ? (
-                                    <ReactLoading type={"spin"} color={"white"} height={20} width={20} />
-                                ) : (
-                                    "Verify Proof"
-                                )}
-                            </Button>
+                            <div className="w-full flex justify-center items-center">
+                                <Button backgroundColor="black" color="white" onClickHandler={verifyProof}>
+                                    {isLoading === 2 ? (
+                                        <ReactLoading type={"spin"} color={"white"} height={20} width={20} />
+                                    ) : (
+                                        "Verify Proof"
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                     ) : null}
                 </div>
