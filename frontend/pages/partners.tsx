@@ -98,12 +98,14 @@ export default function Partners() {
                     );
                 }
             }
-
             const hash = circuitInputs.current.hash;
             const formattedJSON = circuitInputs.current.formattedJSON;
-            const obj = await preprocessJson(circuitInputs.current.jsonText, 150);
+            const obj = await preprocessJson(circuitInputs.current.jsonText, 150, revealedFields);
+
+
             const finalInput = { ...sigParts, hashJsonProgram: hash, jsonProgram: formattedJSON, ...obj, inputReveal: revealedFields, };
-            console.log(JSON.stringify(finalInput));
+            
+            console.log("HELLLL", finalInput);
 
             const worker = new Worker("./worker.js");
             worker.postMessage([finalInput, "./jsonFull_final.zkey"]);

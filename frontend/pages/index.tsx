@@ -102,9 +102,6 @@ export default function Home() {
 
             checkJsonSchema(JsonDataStore) 
             if (jsonText) {
-                const obj = preprocessJson(JSON.parse(jsonText), 150);
-                const worker = new Worker("./worker.js");
-
                 // BUILD the revealedFields array;
                 var revealedFields: number[] = [];
                 for (var key of REQUIRED_FIELDS) {
@@ -115,6 +112,8 @@ export default function Home() {
                         );
                     }
                 }
+                const obj = preprocessJson(JSON.parse(jsonText), 150, revealedFields);
+                const worker = new Worker("./worker.js");
                 if (
                     obj &&
                     typeof hash == "string" &&
