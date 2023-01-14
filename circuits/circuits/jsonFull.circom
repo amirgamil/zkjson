@@ -356,7 +356,11 @@ template JsonFull(stackDepth, numKeys, keyLengths, queryDepths) {
 
 component main { public [
   jsonProgram,
-  keysOffset
+  keysOffset,
+  keys,
+  values,
+  pubKey,
+  hashJsonProgram
 ] } = JsonFull(2, 6, [[6, 0], [7, 6], [7, 12], [9, 0], [8, 0], [13, 0]], [1, 2, 2, 1, 1, 1]);
 
 /*
