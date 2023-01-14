@@ -22,6 +22,7 @@ import {
     preprocessJson,
     ProofArtifacts,
     toAscii,
+    getRecursiveKeyInDataStore,
 } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
@@ -29,6 +30,9 @@ import { VerifyPayload } from "../utilities/types";
 import { calculatePoseidon, generateEddsaSignature, hardCodedInput, strHashToBuffer } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
+
+import Editor, { DiffEditor, useMonaco, loader } from "@monaco-editor/react";
+import { json } from "stream/consumers";
 
 const Container = styled.main`
     .viewProof {
@@ -40,11 +44,18 @@ const Container = styled.main`
     }
 `;
 
+interface Signature {
+    "R8": string[],
+    "S": string[],
+    "A": string[],
+    "msg": string[],
+}
+
 export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
-    const [signature, setSignature] = useState<Object | undefined>(undefined);
+    const [signature, setSignature] = useState<Signature | undefined>(undefined);
     const [hash, setHash] = useState<string | undefined>(undefined);
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
@@ -62,7 +73,7 @@ export default function Home() {
             }
         }
         if (!isJSONStore(ptr)) {
-            ptr["ticked"] = state;
+            ptr["ticked"] = !ptr["ticked"];
         }
         setJsonDataStore(newJson);
     };
@@ -73,6 +84,7 @@ export default function Home() {
         values: Ascii[][];
         keysOffset: number[][][];
         valuesOffset: number[][];
+        revealInput: number[];
         hashJsonProgram: string;
         pubKey: string[];
         R8: string[];
@@ -86,25 +98,56 @@ export default function Home() {
                 return;
             }
             setIsLoading(true);
-            // hardCoded.jsonProgram.map(BigInt);
+
+            const REQUIRED_FIELDS = [
+                ["crush", "name"],
+                ["crush", "basedScore"],
+                ["name"],
+                ["balance"],
+                ["height"],
+                ["superlative"]
+            ]
+
+            // Ensure that all the required fields exist;
+            var missingFields = [];
+            for (var fields of REQUIRED_FIELDS) {
+                if (getRecursiveKeyInDataStore(fields, JsonDataStore) === undefined) {
+                    var fieldStr = "";
+                    for (var field of fields) {
+                        fieldStr += field;
+                        fieldStr += '.';
+                    }
+                    missingFields.push(fieldStr.slice(0, length - 1));
+                }
+            }
+            if (missingFields.length) {
+                var errorStr = "Unable to generate proof! Missing the following fields: ";
+                for (var field of missingFields) {
+                    errorStr += field;
+                    errorStr += ", ";
+                }
+                toast.error(errorStr.slice(0, errorStr.length - 2));
+                return;
+            }
 
             if (jsonText) {
-                console.log(formattedJSON);
                 const obj = preprocessJson(JSON.parse(jsonText), 150);
-                console.log(JSON.stringify(obj));
-
                 const worker = new Worker("./worker.js");
 
+                // BUILD the revealedFields array;
+                var revealedFields: number[] = [];
+                for (var key of REQUIRED_FIELDS) {
+                    var node = getRecursiveKeyInDataStore(key, JsonDataStore);
+                    if (node !== undefined && !isJSONStore(node)) {
+                        revealedFields.push(
+                            node["ticked"] ? 1: 0
+                        );
+                    }
+                }
                 if (
                     obj &&
                     typeof hash == "string" &&
-                    signature !== undefined &&
-                    "A" in signature &&
-                    "R8" in signature &&
-                    "S" in signature &&
-                    Array.isArray(signature["A"]) &&
-                    Array.isArray(signature["R8"]) &&
-                    Array.isArray(signature["S"])
+                    signature !== undefined
                 ) {
                     let objFull: FullJsonCircuitInput = {
                         ...obj,
@@ -112,8 +155,11 @@ export default function Home() {
                         pubKey: signature["A"],
                         R8: signature["R8"],
                         S: signature["S"],
+                        revealInput: revealedFields,
                     };
-                    worker.postMessage([hardCodedInput, "./jsonFull_final.zkey"]);
+
+                    console.log(objFull);
+                    worker.postMessage([objFull, "./jsonFull_final2.zkey"]);
                 } else {
                     toast.error(
                         "Invalid proving request. Please ensure that your JSON includes the required attributes"
@@ -175,7 +221,7 @@ export default function Home() {
         let hash = await calculatePoseidon(toAscii(newFormattedJSON));
 
         // const signature = await ed.sign(ethers.utils.toUtf8Bytes(newFormattedJSON), privateKey as string);
-        const signature = await generateEddsaSignature(
+        const signature: Signature = await generateEddsaSignature(
             privateKey as Uint8Array,
             // ethers.utils.toUtf8Bytes(newFormattedJSON)
             strHashToBuffer(hash)
@@ -183,50 +229,6 @@ export default function Home() {
 
         setHash(hash);
         setSignature(signature);
-
-        console.log(hash);
-
-        let unsafe_sig: any = signature;
-        if ("R8" in signature && Array.isArray(signature["R8"])) {
-            console.log("R8:");
-            var buffer = "";
-            for (var i = 0; i < signature["R8"].length; i++) {
-                buffer += '"' + signature["R8"][i] + "\", ";
-            }
-            console.log(buffer);
-        }
-        console.log("----------------");
-
-        if ("S" in signature && Array.isArray(signature["S"])) {
-            console.log("S:");
-            var buffer = "";
-            for (var i = 0; i < signature["S"].length; i++) {
-                buffer += '"' + signature["S"][i] + "\", ";
-            }
-            console.log(buffer);
-        }
-        console.log("----------------");
-
-        if ("P" in signature && Array.isArray(signature["P"])) {
-            console.log("P:");
-            var buffer = "";
-            for (var i = 0; i < signature["P"].length; i++) {
-                buffer += '"' + signature["P"][i] + "\", ";
-            }
-            console.log(buffer);
-        }
-
-        console.log("----------------");
-
-        if ("msg" in signature && Array.isArray(signature["msg"])) {
-            console.log("msg:");
-            var buffer = "";
-            for (var i = 0; i < signature["msg"].length; i++) {
-                buffer += '"' + signature["msg"][i] + "\", ";
-            }
-            console.log(buffer);
-        }
-
     };
 
     const verifyProof = async () => {
@@ -241,6 +243,7 @@ export default function Home() {
             toast.error("Failed to verify proof");
         }
     };
+    const DEFAULT_TEXT = `{\n\t"name":"John Doe",\n\t"age": 42,\n\t"address": "123 Main St"\n}`;
 
     return (
         <>
@@ -268,7 +271,26 @@ export default function Home() {
                         "generating your key pair..."
                     ) : (
                         <div className="w-full flex flex-col items-center justify-center">
-                            <Textarea
+                            {/* <Editor
+                                height="20vh"
+                                defaultLanguage="json"
+                                defaultValue={DEFAULT_TEXT}
+                                options={
+                                    {
+                                        "minimap":{"enabled": false},
+                                        "scrollbar": {"vertical": "hidden"}
+                                    }
+                                }
+                                onMount={() => {
+                                    setJsonText(DEFAULT_TEXT);
+                                }}
+                                onChange={(newVal: string | undefined, _ev: _) => {
+                                    if (newVal !== undefined) {
+                                        setJsonText(newVal);
+                                    }
+                                }}
+                            /> */}
+                            <Textarea 
                                 placeholder={"Paste your JSON string"}
                                 value={jsonText}
                                 onChangeHandler={(newVal: string) => {
@@ -283,20 +305,22 @@ export default function Home() {
                         </div>
                     )}
 
-                    {formattedJSON ? (
+                    {/* {formattedJSON ? (
                         <>
                             <div className="py-2"></div>
                             <JsonViewer value={formattedJSON} />
                         </>
-                    ) : null}
+                    ) : null} */}
                     <br />
 
                     <div className="py-2"></div>
-                    <div className="bg-red">
-                        {"{"}
-                        <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
-                        {"}"}
-                    </div>
+                    { Object.keys(JsonDataStore).length != 0 && 
+                        <div className="font-mono">
+                            {"{"}
+                            <Card dataStore={JsonDataStore} setKeyInDataStore={setRecursiveKeyInDataStore} keys={[]}></Card>
+                            {"}"}
+                        </div>
+                    }
                     <br />
 
                     {jsonText && signature && (

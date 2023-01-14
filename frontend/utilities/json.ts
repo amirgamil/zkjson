@@ -51,6 +51,7 @@ export const getRecursiveKeyInDataStore = (keys: string[], json: JSON_STORE) => 
         if (isJSONStore(ptr) && typeof key === "string" && ptr[key] && ptr[key]) {
             ptr = ptr[key];
         } else {
+            return undefined;
         }
     }
     return ptr;
@@ -141,6 +142,15 @@ function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[]): Ascii[]
 function getValue(obj: Object, attrQuery: AttributeQuery) {
     return attrQuery.reduce((acc: Record<string, any>, c: string) => acc[c], obj);
 }
+
+const REQUIRED_FIELDS = [
+    ["crush", "name"],
+    ["crush", "basedScore"],
+    ["name"],
+    ["balance"],
+    ["height"],
+    ["superlative"]
+];
 
 export function preprocessJson(
     obj: Object,

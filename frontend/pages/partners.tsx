@@ -54,7 +54,7 @@ export default function Partners() {
 
     const circuitInputs = useRef<ExtractedJSONSignature & { hash: string }>();
 
-    const setRecursiveKeyInDataStore = (keys: string[], state: boolean) => {
+    const setRecursiveKeyInDataStore = (keys: string[]) => {
         let newJson = { ...JsonDataStore };
         let ptr: JSON_EL | JSON_STORE = newJson;
         //TODO: handle nesting
@@ -66,7 +66,7 @@ export default function Partners() {
             }
         }
         if (!isJSONStore(ptr)) {
-            ptr["ticked"] = state;
+            ptr["ticked"] = !ptr["ticked"];
         }
         setJsonDataStore(newJson);
     };

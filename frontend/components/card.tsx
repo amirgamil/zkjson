@@ -4,8 +4,9 @@ import { getRecursiveKeyInDataStore, isJSONStore, JSON_EL, JSON_STORE } from "..
 export function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; keys: string[] }) {
     // jsonText
 
-    const handleCheckmarkCheck = (event: React.ChangeEvent<HTMLInputElement>, keys: string[]) => {
-        props.setKeyInDataStore(keys, event.target.checked);
+    const handleCheckmarkCheck = (keys: string[]) => {
+        console.log("HELLLO");
+        props.setKeyInDataStore(keys);
     };
     const [fetchJson, setFetchedJson] = useState<null | JSON_STORE | JSON_EL>(null);
     const [numKeys, setNumKeys] = useState<number>(0);
@@ -42,24 +43,31 @@ export function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; key
                                                 <>
                                                     <div key={index}>
                                                         <span className="mb-4 mr-4">{'"' + key + '"'}: 
+                                                        <button className={
+                                                            fetchJson[key] && fetchJson[key].ticked ?
+                                                                "hover:line-through decoration-pink-500 decoration-2" :
+                                                                "line-through decoration-pink-500 decoration-2" }
+                                                            onClick={() =>
+                                                                handleCheckmarkCheck(props.keys.concat([key]))
+                                                            }
+                                                        >
                                                         {
-                                                            key in fetchJson && fetchJson[key]
-                                                                && typeof fetchJson[key]['value'] === 'string' ?
-                                                                '"' + fetchJson[key]['value'] + '"' :
-                                                                fetchJson[key]['value']
-                                                        }
-                                                        {
-                                                            (() => {
-                                                                console.log("100000000000000000", fetchJson[key]);
-                                                                return <></>;
-                                                            })()
+                                                                key in fetchJson && 
+                                                                fetchJson[key] && <>{
+                                                                    "value" in fetchJson[key] &&
+                                                                    typeof fetchJson[key]['value'] === 'string' ?
+                                                                    '"' + fetchJson[key]['value'] + '"' :
+                                                                    fetchJson[key]['value']    
+                                                                }</>
                                                         }
                                                         {index != numKeys - 1 && <>,</>}
+                                                        </button>
                                                         </span>
-                                                        <label className="inline-flex items-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                className="mr-4 pt-2 form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                                                        {/* <label className="inline-flex items-center">
+                                                            <input 
+                                                                className="form-check-input appearance-none h-4 w-4 border border-gray-300 rounded-sm bg-white checked:bg-blue-600 checked:border-blue-600 focus:outline-none transition duration-200 mt-1 align-top bg-no-repeat bg-center bg-contain float-left mr-2 cursor-pointer"
+                                                                // className="form-check-input appearance-none h-4 w-4 border border-gray-300 rounded-sm bg-white checked:bg-blue-600 checked:border-blue-600 focus:outline-none transition duration-200 mt-1 align-top bg-no-repeat bg-center bg-contain float-left mr-2 cursor-pointer"
+                                                                type="checkbox" 
                                                                 onChange={(e) =>
                                                                     handleCheckmarkCheck(e, props.keys.concat([key]))
                                                                 }
@@ -68,8 +76,9 @@ export function Card(props: { dataStore: JSON_STORE; setKeyInDataStore: any; key
                                                                         ? true
                                                                         : false
                                                                 }
-                                                            />
-                                                        </label>
+                                                                id="flexCheckDefault"
+                                                            ></input>
+                                                        </label> */}
                                                     </div>
                                                 </>
                                             )}
