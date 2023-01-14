@@ -25,7 +25,7 @@ import {
 } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
-import { VerifyPayload } from "../utilities/types";
+import { EddsaSignature, VerifyPayload } from "../utilities/types";
 import { calculatePoseidon, generateEddsaSignature, hardCodedInput, strHashToBuffer } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
@@ -44,7 +44,7 @@ export default function Home() {
     const [jsonText, setJsonText] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [hasKeypair, setHasKeypair] = useState<boolean>(false);
-    const [signature, setSignature] = useState<Object | undefined>(undefined);
+    const [signature, setSignature] = useState<EddsaSignature | undefined>(undefined);
     const [hash, setHash] = useState<string | undefined>(undefined);
     const [proofArtifacts, setProofArtifacts] = useState<ProofArtifacts | undefined>(undefined);
     const [formattedJSON, setFormattedJSON] = useState<string | undefined>(undefined);
@@ -108,7 +108,7 @@ export default function Home() {
                     let objFull: FullJsonCircuitInput = {
                         ...obj,
                         hashJsonProgram: hash,
-                        pubKey: signature["A"],
+                        pubKey: signature["pubKey"],
                         R8: signature["R8"],
                         S: signature["S"],
                     };
