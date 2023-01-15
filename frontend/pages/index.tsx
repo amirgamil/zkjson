@@ -33,6 +33,7 @@ import { calculatePoseidon, generateEddsaSignature, hardCodedInput, strHashToBuf
 import { Card } from "../components/card";
 import Link from "next/link";
 import ReactLoading from "react-loading";
+import { producePP } from "../utilities/producePP";
 
 const Container = styled.main`
     .viewProof {
@@ -328,6 +329,17 @@ export default function Home() {
                                     rel="noreferrer"
                                 >
                                     View Proof
+                                </a>
+                            </div>
+                            <div className="flex underlineContainer justify-center items-center text-center">
+                                <a
+                                    className="viewProof text-underline"
+                                    target="_blank"
+                                    href={"data:text/json;charset=utf-8," + JSON.stringify(producePP(proofArtifacts.publicSignals))}
+                                    download={"proof.json"}
+                                    rel="noreferrer"
+                                >
+                                    View Public Info
                                 </a>
                             </div>
                             <div className="py-2"></div>
