@@ -20,7 +20,8 @@ const processAsciiStringArray = (arr: string[]) => {
 
 const stackDepth = 2;
 
-export function producePP(pp: string[]) {
+export function producePP(ppa: string[]) {
+    var pp = [...ppa];
     console.log(pp);
     pp.splice(0, 1);
     pp.splice(0, 256);
