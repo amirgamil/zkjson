@@ -9,13 +9,6 @@ export function isJSON(jsonText: any) {
 
 export const MAX_JSON_LENGTH = 150;
 
-export function JSONStringifyCustom(val: any) {
-    return JSON.stringify(
-        val,
-        (key, value) => (typeof value === "bigint" ? value.toString() : value) // return everything else unchanged
-    );
-}
-
 export function padJSONString(jsonString: string, desiredLength: number) {
     return jsonString.padEnd(desiredLength, "\0");
 }
@@ -124,19 +117,6 @@ function checkAttributes(obj: { [key: string]: any }, attrQueries: AttributeQuer
         }
     }
     return true;
-}
-
-function extractValuesAscii(obj: Object, attrQueries: AttributeQuery[]): Ascii[][] {
-    return attrQueries.map((attrQ) => {
-        const value: any = getValue(obj, attrQ);
-        if (typeof value === "string") {
-            return padAscii(toAscii(`"${value}"`), ATTR_VAL_MAX_LENGTH);
-        } else if (typeof value === "number" || typeof value == "boolean") {
-            return padAscii(toAscii(value.toString()), ATTR_VAL_MAX_LENGTH);
-        } else {
-            return [];
-        }
-    });
 }
 
 function getValue(obj: Object, attrQuery: AttributeQuery) {
@@ -296,7 +276,3 @@ export const checkJsonSchema = (JsonDataStore: JSON_STORE) => {
     }
 
 }
-
-// let json = {"name":"foobar","value":123,"map":{"a":true}}
-// preprocessJson(json, [["map", "a"]], 50, 3).then(res =>
-// 	console.dir(res, {depth: null}));

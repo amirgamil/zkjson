@@ -5,8 +5,6 @@ import React, { useEffect, useState } from "react";
 import { Button } from "../components/button";
 import localforage from "localforage";
 import * as ed from "@noble/ed25519";
-import * as ethers from "ethers";
-import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
 import {
@@ -14,7 +12,6 @@ import {
     Ascii,
     isJSON,
     isJSONStore,
-    JSONStringifyCustom,
     JSON_EL,
     JSON_STORE,
     MAX_JSON_LENGTH,
@@ -28,11 +25,12 @@ import {
 } from "../utilities/json";
 import styled from "styled-components";
 import axios from "axios";
-import { EddsaSignature, VerifyPayload } from "../utilities/types";
-import { calculatePoseidon, generateEddsaSignature, hardCodedInput, strHashToBuffer } from "../utilities/crypto";
+import { VerifyPayload } from "../utilities/types";
+import { calculatePoseidon, generateEddsaSignature, strHashToBuffer } from "../utilities/crypto";
 import { Card } from "../components/card";
 import Link from "next/link";
 import ReactLoading from "react-loading";
+import { producePP } from "../utilities/producePP";
 
 const Container = styled.main`
     .viewProof {
@@ -110,6 +108,7 @@ export default function Home() {
                 }
                 const obj = preprocessJson(JSON.parse(jsonText), 150, revealedFields);
                 const worker = new Worker("./worker.js");
+
                 if (
                     obj &&
                     typeof hash == "string" &&
@@ -327,6 +326,17 @@ export default function Home() {
                                     rel="noreferrer"
                                 >
                                     View Proof
+                                </a>
+                            </div>
+                            <div className="flex underlineContainer justify-center items-center text-center">
+                                <a
+                                    className="viewProof text-underline"
+                                    target="_blank"
+                                    href={"data:text/json;charset=utf-8," + JSON.stringify(producePP(proofArtifacts.publicSignals))}
+                                    download={"proof.json"}
+                                    rel="noreferrer"
+                                >
+                                    View Public Info
                                 </a>
                             </div>
                             <div className="py-2"></div>

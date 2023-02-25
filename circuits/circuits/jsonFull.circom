@@ -355,8 +355,6 @@ template JsonFull(stackDepth, numKeys, keyLengths, queryDepths) {
 }
 
 component main { public [
-  jsonProgram,
-  keysOffset,
   keys,
   values,
   pubKey,

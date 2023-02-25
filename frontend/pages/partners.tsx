@@ -1,11 +1,10 @@
 import Head from "next/head";
 import styles from "../styles/Home.module.css";
 import { Textarea } from "../components/textarea";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "../components/button";
 import localforage from "localforage";
 import * as ed from "@noble/ed25519";
-import * as ethers from "ethers";
 import { JsonViewer } from "@textea/json-viewer";
 
 import toast, { Toaster } from "react-hot-toast";
@@ -30,8 +29,6 @@ import {
     calculatePoseidon,
     extractPartsFromSignature,
     extractSignatureInputs,
-    generateEddsaSignature,
-    hardCodedInput,
     strHashToBuffer,
 } from "../utilities/crypto";
 import { Card } from "../components/card";
@@ -39,6 +36,7 @@ import Link from "next/link";
 import ReactLoading from "react-loading";
 
 import JSConfetti from "js-confetti";
+import { producePP } from "../utilities/producePP";
 
 const Container = styled.main`
     .viewProof {
@@ -102,7 +100,7 @@ export default function Partners() {
             }
             const hash = circuitInputs.current.hash;
             const formattedJSON = circuitInputs.current.formattedJSON;
-            const obj = await preprocessJson(circuitInputs.current.jsonText, 150, revealedFields);
+            const obj = preprocessJson(circuitInputs.current.jsonText, MAX_JSON_LENGTH, revealedFields);
 
             const finalInput = {
                 ...sigParts,
@@ -271,9 +269,7 @@ export default function Partners() {
                                 <a
                                     className="viewProof text-underline"
                                     target="_blank"
-                                    href={
-                                        "data:text/json;charset=utf-8," + JSON.stringify(proofArtifacts.publicSignals)
-                                    }
+                                    href={"data:text/json;charset=utf-8," + JSON.stringify(producePP(proofArtifacts.publicSignals))}
                                     download={"publicParams.json"}
                                     rel="noreferrer"
                                 >
